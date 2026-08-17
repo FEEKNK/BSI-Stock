@@ -3,10 +3,10 @@ import { SizeSelector } from './SizeSelector';
 import { validateProduct } from '../../utils/validators';
 import { generateBarcodeValue } from '../../utils/barcode';
 import { useAppContext } from '../../context/AppContext';
-import { Tag, X } from 'lucide-react';
+import { Plus, X, Check } from 'lucide-react';
 
 export function ProductForm({ initialData = null, onSubmit, onCancel }) {
-  const { products, settings, savedCategories, addSavedCategory, removeSavedCategory } = useAppContext();
+  const { products, settings, savedCategories, addSavedCategory } = useAppContext();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -19,6 +19,8 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
   });
 
   const [errors, setErrors] = useState({});
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   // Combine savedCategories and unique categories from existing products
   const allCategories = Array.from(
@@ -39,10 +41,17 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
     }
   };
 
-  const handleSelectCategory = (cat) => {
-    setFormData(prev => ({ ...prev, category: cat }));
-    if (errors.category) {
-      setErrors(prev => ({ ...prev, category: null }));
+  const handleAddNewCategory = (e) => {
+    if (e) e.preventDefault();
+    const trimmed = newCategoryName.trim();
+    if (trimmed) {
+      addSavedCategory(trimmed);
+      setFormData(prev => ({ ...prev, category: trimmed }));
+      if (errors.category) {
+        setErrors(prev => ({ ...prev, category: null }));
+      }
+      setNewCategoryName('');
+      setIsAddingCategory(false);
     }
   };
 
@@ -63,7 +72,7 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
       return;
     }
 
-    // Save the category for next time
+    // Auto-save the category if not empty
     if (formData.category) {
       addSavedCategory(formData.category);
     }
@@ -113,68 +122,110 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
 
         <div>
           <label style={labelStyle}>หมวดหมู่ <span style={{color: 'var(--danger)'}}>*</span></label>
-          <input
-            type="text"
-            name="category"
-            list="category-suggestions"
-            value={formData.category}
-            onChange={handleChange}
-            style={{...inputStyle, borderColor: errors.category ? 'var(--danger)' : 'var(--border)'}}
-            placeholder="พิมพ์หรือเลือกหมวดหมู่..."
-          />
-          <datalist id="category-suggestions">
-            {allCategories.map(cat => (
-              <option key={cat} value={cat} />
-            ))}
-          </datalist>
-          {errors.category && <span style={{color: 'var(--danger)', fontSize: '0.75rem'}}>{errors.category}</span>}
-
-          {/* Quick select saved categories */}
-          {allCategories.length > 0 && (
-            <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              <Tag size={12} style={{ color: 'var(--text-tertiary)' }} />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>หมวดหมู่ที่บันทึกไว้:</span>
-              {allCategories.map(cat => {
-                const isSelected = formData.category === cat;
-                return (
-                  <span
-                    key={cat}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--bg-main)',
-                      border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
-                      borderRadius: '12px',
-                      padding: '2px 8px',
-                      fontSize: '0.75rem',
-                      color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <span onClick={() => handleSelectCategory(cat)} style={{ fontWeight: isSelected ? 600 : 400 }}>
-                      {cat}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeSavedCategory(cat);
-                      }}
-                      style={{
-                        marginLeft: '4px',
-                        color: 'var(--text-tertiary)',
-                        display: 'inline-flex',
-                        alignItems: 'center'
-                      }}
-                      title="ลบหมวดหมู่นี้ออกจากที่บันทึกไว้"
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
-                );
-              })}
+          
+          {!isAddingCategory ? (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                style={{
+                  ...inputStyle,
+                  flex: 1,
+                  borderColor: errors.category ? 'var(--danger)' : 'var(--border)',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">-- เลือกหมวดหมู่ --</option>
+                {allCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setIsAddingCategory(true)}
+                style={{
+                  padding: '0 14px',
+                  backgroundColor: 'var(--bg-main)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--primary)',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  height: '42px'
+                }}
+                title="เพิ่มหมวดหมู่ใหม่"
+              >
+                <Plus size={16} /> เพิ่ม
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="พิมพ์ชื่อหมวดหมู่ใหม่..."
+                autoFocus
+                style={{
+                  ...inputStyle,
+                  flex: 1
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddNewCategory();
+                  } else if (e.key === 'Escape') {
+                    setIsAddingCategory(false);
+                    setNewCategoryName('');
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddNewCategory}
+                style={{
+                  padding: '0 12px',
+                  backgroundColor: 'var(--primary)',
+                  color: '#ffffff',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontWeight: 600,
+                  height: '42px'
+                }}
+              >
+                <Check size={16} /> บันทึก
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingCategory(false);
+                  setNewCategoryName('');
+                }}
+                style={{
+                  padding: '0 10px',
+                  backgroundColor: 'var(--bg-main)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: '42px'
+                }}
+                title="ยกเลิก"
+              >
+                <X size={16} />
+              </button>
             </div>
           )}
+
+          {errors.category && <span style={{color: 'var(--danger)', fontSize: '0.75rem'}}>{errors.category}</span>}
         </div>
       </div>
 
