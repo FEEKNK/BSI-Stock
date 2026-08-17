@@ -141,6 +141,16 @@ app.post('/api/category-codes', async (req, res) => {
   }
 });
 
+// Delete category code
+app.delete('/api/category-codes/:code', async (req, res) => {
+  try {
+    await query('DELETE FROM category_codes WHERE code = $1', [req.params.code]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete category code' });
+  }
+});
+
 // Get all size codes
 app.get('/api/size-codes', async (req, res) => {
   try {
@@ -162,6 +172,16 @@ app.post('/api/size-codes', async (req, res) => {
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create size code' });
+  }
+});
+
+// Delete size code
+app.delete('/api/size-codes/:code', async (req, res) => {
+  try {
+    await query('DELETE FROM size_codes WHERE code = $1', [req.params.code]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete size code' });
   }
 });
 
