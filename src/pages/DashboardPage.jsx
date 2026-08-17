@@ -152,41 +152,41 @@ export function DashboardPage() {
                     padding: '12px 16px', textAlign: 'center', fontWeight: 700,
                     color: 'var(--text-primary)', border: '1px solid var(--border)',
                     borderBottom: '2px solid var(--primary)',
-                    position: 'sticky', left: 0, backgroundColor: 'var(--bg-main)', zIndex: 1, minWidth: '80px'
+                    position: 'sticky', left: 0, backgroundColor: 'var(--bg-main)', zIndex: 1, minWidth: '120px'
                   }}>
-                    ไซส์ \ สินค้า
+                    สินค้า \ ไซส์
                   </th>
-                  {stockMatrix.productsWithSizes.map(p => (
-                    <th key={p.id} style={{
+                  {stockMatrix.allSizes.map(size => (
+                    <th key={size} style={{
                       padding: '12px 16px', fontWeight: 600,
                       color: 'var(--primary)', border: '1px solid var(--border)',
-                      borderBottom: '2px solid var(--primary)', minWidth: '90px',
+                      borderBottom: '2px solid var(--primary)', minWidth: '70px',
                       whiteSpace: 'nowrap'
                     }}>
-                      {p.name}
+                      {size}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {stockMatrix.allSizes.map((size, idx) => (
-                  <tr key={size} style={{ backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)' }}>
+                {stockMatrix.productsWithSizes.map((p, idx) => (
+                  <tr key={p.id} style={{ backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)' }}>
                     <td style={{
-                      padding: '10px 16px', fontWeight: 600, textAlign: 'center',
+                      padding: '10px 16px', fontWeight: 600, textAlign: 'left',
                       color: 'var(--text-primary)', border: '1px solid var(--border)',
                       position: 'sticky', left: 0,
                       backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', zIndex: 1
                     }}>
-                      {size}
+                      {p.name}
                     </td>
-                    {stockMatrix.productsWithSizes.map(p => {
+                    {stockMatrix.allSizes.map(size => {
                       const sizeData = p.sizes?.[size];
                       const stock = sizeData
                         ? (typeof sizeData === 'object' ? sizeData.stock : Number(sizeData))
                         : null;
                       
                       return (
-                        <td key={p.id} style={{
+                        <td key={size} style={{
                           padding: '10px 16px',
                           fontWeight: stock !== null ? 600 : 400,
                           backgroundColor: stock === null ? '#94a3b8' : 'transparent', // ถมสีเทาเข้มแบบในกระดาษ
