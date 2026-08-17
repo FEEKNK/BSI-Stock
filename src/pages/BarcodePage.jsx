@@ -28,18 +28,22 @@ export function BarcodePage() {
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
       
+      // Classic POS scanner beep (7-11 style)
+      // Crisp, high-pitched sine wave around 2200Hz, lasting ~100ms
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); 
-      oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+      oscillator.frequency.setValueAtTime(2200, audioCtx.currentTime); 
       
-      gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      // Quick envelope to sound snappy
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.01);
+      gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime + 0.08);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
       
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
       
       oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.1);
+      oscillator.stop(audioCtx.currentTime + 0.15);
     } catch (e) {
       console.warn("Audio not supported or blocked");
     }
