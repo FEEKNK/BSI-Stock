@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Layers, Tag, Barcode } from 'lucide-react';
+import { Plus, Minus, X, Layers, Tag, Barcode } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { generateBarcodeValue } from '../../utils/barcode';
 
@@ -9,11 +9,16 @@ export function SizeSelector({ value = {}, onChange }) {
 
   const handleQuantityChange = (size, qty) => {
     const current = value[size] || { stock: 0, barcode: '' };
-    const newValue = { ...value, [size]: { ...current, stock: Number(qty) } };
-    if (qty === '' || isNaN(qty) || Number(qty) < 0) {
-      newValue[size].stock = 0;
-    }
-    onChange(newValue);
+    const num = Number(qty);
+    const updatedStock = (isNaN(num) || num < 0) ? 0 : num;
+    onChange({ ...value, [size]: { ...current, stock: updatedStock } });
+  };
+
+  const handleIncrement = (size, delta) => {
+    const current = value[size] || { stock: 0, barcode: '' };
+    const currentStock = Number(current.stock) || 0;
+    const updatedStock = Math.max(0, currentStock + delta);
+    onChange({ ...value, [size]: { ...current, stock: updatedStock } });
   };
 
   const handleBarcodeChange = (size, barcodeValue) => {
@@ -152,7 +157,7 @@ export function SizeSelector({ value = {}, onChange }) {
             whiteSpace: 'nowrap'
           }}
         >
-          <Plus size={16} /> เพิ่มและบันทึกไซส์
+          <Plus size={16} /> เพิ่มไซส์
         </button>
       </div>
 
@@ -235,25 +240,81 @@ export function SizeSelector({ value = {}, onChange }) {
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {/* Stepper Controls */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>จำนวน:</span>
-                    <input 
-                      type="number"
-                      min="0"
-                      value={stock}
-                      onChange={(e) => handleQuantityChange(size, e.target.value)}
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleIncrement(size, -1)}
+                        style={{
+                          padding: '6px 10px',
+                          backgroundColor: 'var(--bg-main)',
+                          color: 'var(--text-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="ลด 1"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      
+                      <input 
+                        type="number"
+                        min="0"
+                        value={stock}
+                        onChange={(e) => handleQuantityChange(size, e.target.value)}
+                        style={{
+                          padding: '6px 8px',
+                          border: 'none',
+                          borderLeft: '1px solid var(--border)',
+                          borderRight: '1px solid var(--border)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)',
+                          width: '70px',
+                          textAlign: 'center',
+                          fontWeight: 600,
+                          outline: 'none'
+                        }}
+                      />
+                      
+                      <button
+                        type="button"
+                        onClick={() => handleIncrement(size, 1)}
+                        style={{
+                          padding: '6px 10px',
+                          backgroundColor: 'var(--bg-main)',
+                          color: 'var(--text-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="เพิ่ม 1"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleIncrement(size, 5)}
                       style={{
-                        padding: '6px 12px',
+                        padding: '4px 8px',
+                        fontSize: '0.75rem',
+                        backgroundColor: 'var(--primary-light)',
+                        color: 'var(--primary)',
                         borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border)',
-                        backgroundColor: 'var(--bg-main)',
-                        color: 'var(--text-primary)',
-                        width: '80px',
-                        textAlign: 'center',
                         fontWeight: 600
                       }}
-                    />
+                      title="เพิ่ม 5 ชิ้น"
+                    >
+                      +5
+                    </button>
+
                     <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>ชิ้น</span>
+
                     <button 
                       type="button" 
                       onClick={() => removeSizeFromProduct(size)} 
@@ -263,7 +324,8 @@ export function SizeSelector({ value = {}, onChange }) {
                         borderRadius: 'var(--radius-sm)',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        marginLeft: '8px'
                       }}
                       title="ลบไซส์นี้ออกจากสินค้านี้"
                     >

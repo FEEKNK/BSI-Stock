@@ -87,6 +87,20 @@ input, select, textarea {
 .text-primary { color: var(--primary); }
 .text-secondary { color: var(--text-secondary); }
 
+.badge-danger {
+  background-color: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.96); }
+}
+
+.animate-pulse {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 .bg-danger { background-color: var(--danger-bg); }
 .bg-warning { background-color: var(--warning-bg); }
 .bg-success { background-color: var(--success-bg); }

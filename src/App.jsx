@@ -7,6 +7,7 @@ import { Header } from './components/Layout/Header';
 // Pages
 import { DashboardPage } from './pages/DashboardPage';
 import { ProductsPage } from './pages/ProductsPage';
+import { CategoriesPage } from './pages/CategoriesPage';
 import { BarcodePage } from './pages/BarcodePage';
 import { SettingsPage } from './pages/SettingsPage';
 
@@ -24,6 +25,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/products" element={<ProductsPage />} />
+                <Route path="/categories" element={<CategoriesPage />} />
                 <Route path="/barcode" element={<BarcodePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Routes>
