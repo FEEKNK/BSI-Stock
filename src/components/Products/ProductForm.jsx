@@ -8,29 +8,27 @@ import { Modal } from '../common/Modal';
 import { Plus, X, Check, Camera, Sparkles } from 'lucide-react';
 
 export function ProductForm({ initialData = null, onSubmit, onCancel }) {
-  const { products, settings, savedCategories, addSavedCategory, removeSavedCategory } = useAppContext();
+  const { products, settings } = useAppContext();
   
   const [formData, setFormData] = useState({
     name: '',
     category: '',
     description: '',
-    price: '',
-    barcode: '',
     sizes: {},
     threshold: settings.globalThreshold,
     product_code: null
   });
 
   const [errors, setErrors] = useState({});
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [scannedExistingNotice, setScannedExistingNotice] = useState(null);
 
-  // Combine savedCategories and unique categories from existing products
-  const allCategories = Array.from(
-    new Set([...savedCategories, ...products.map(p => p.category).filter(Boolean)])
-  );
+  const [dbCategories, setDbCategories] = useState([]);
 
   useEffect(() => {
+    fetch('/api/category-codes')
+      .then(res => res.json())
+      .then(data => setDbCategories(data))
+      .catch(err => console.error(err));
+      
     if (initialData) {
       setFormData(initialData);
     }
@@ -55,30 +53,6 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
     setFormData(prev => ({ ...prev, sizes: newSizes }));
   };
 
-  const handleGenerateBarcode = () => {
-    setFormData(prev => ({ ...prev, barcode: generateBarcodeValue() }));
-    setScannedExistingNotice(null);
-  };
-
-  const handleBarcodeScan = (scannedCode) => {
-    setIsScannerOpen(false);
-    
-    // Check if product already exists with this barcode
-    const existing = products.find(p => p.barcode === scannedCode);
-    if (existing && (!initialData || initialData.id !== existing.id)) {
-      setFormData({
-        ...existing,
-        id: existing.id,
-        price: existing.price || '',
-        sizes: existing.sizes || {}
-      });
-      setScannedExistingNotice(`พบสินค้าในระบบ: "${existing.name}" ข้อมูลถูกโหลดขึ้นมาแล้ว คุณสามารถเพิ่ม/ลดจำนวนสต็อกและกดบันทึกได้ทันที`);
-    } else {
-      setFormData(prev => ({ ...prev, barcode: scannedCode }));
-      setScannedExistingNotice(null);
-    }
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     const validation = validateProduct(formData);
@@ -86,11 +60,6 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
     if (!validation.isValid) {
       setErrors(validation.errors);
       return;
-    }
-
-    // Auto-save the category if not empty
-    if (formData.category) {
-      addSavedCategory(formData.category);
     }
 
     const totalStock = Object.values(formData.sizes).reduce((sum, sizeData) => {
@@ -125,23 +94,7 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
   return (
     <>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        
-        {scannedExistingNotice && (
-          <div style={{
-            padding: '12px 16px',
-            backgroundColor: 'var(--primary-light)',
-            border: '1px solid var(--primary)',
-            borderRadius: 'var(--radius-md)',
-            color: 'var(--primary)',
-            fontSize: '0.875rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <Sparkles size={18} />
-            <span>{scannedExistingNotice}</span>
-          </div>
-        )}
+
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           <div>
@@ -177,8 +130,8 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
               }}
             >
               <option value="">-- เลือกหมวดหมู่ --</option>
-              {allCategories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+              {dbCategories.map(cat => (
+                <option key={cat.code} value={cat.name}>{cat.name}</option>
               ))}
             </select>
 
@@ -186,55 +139,7 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <div>
-            <label style={labelStyle}>ราคา (บาท)</label>
-            <input
-              type="number"
-              name="price"
-              min="0"
-              value={formData.price}
-              onChange={handleChange}
-              style={{...inputStyle, borderColor: errors.price ? 'var(--danger)' : 'var(--border)'}}
-              placeholder="0.00"
-            />
-            {errors.price && <span style={{color: 'var(--danger)', fontSize: '0.75rem'}}>{errors.price}</span>}
-          </div>
 
-          <div>
-            <label style={labelStyle}>บาร์โค้ด</label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                name="barcode"
-                value={formData.barcode}
-                onChange={handleChange}
-                style={{...inputStyle, flex: 1}}
-                placeholder="สแกนหรือพิมพ์บาร์โค้ด"
-              />
-              <button
-                type="button"
-                onClick={() => setIsScannerOpen(true)}
-                style={{
-                  padding: '0 14px',
-                  backgroundColor: 'var(--primary-light)',
-                  border: '1px solid var(--primary)',
-                  color: 'var(--primary)',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap',
-                  fontWeight: 600,
-                  fontSize: '0.875rem'
-                }}
-                title="สแกนบาร์โค้ดด้วยกล้อง"
-              >
-                <Camera size={16} /> สแกน
-              </button>
-            </div>
-          </div>
-        </div>
 
         <div>
           <label style={labelStyle}>รายละเอียดเพิ่มเติม</label>
@@ -304,23 +209,6 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
         </div>
 
       </form>
-
-      {/* Embedded Barcode Scanner Modal */}
-      <Modal 
-        isOpen={isScannerOpen} 
-        onClose={() => setIsScannerOpen(false)} 
-        title="สแกนบาร์โค้ดสินค้า"
-      >
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.875rem' }}>
-            นำบาร์โค้ดมาจ่อที่หน้ากล้องเพื่ออ่านรหัสอัตโนมัติ
-          </p>
-          <BarcodeScanner 
-            elementId="form-barcode-scanner" 
-            onScan={handleBarcodeScan} 
-          />
-        </div>
-      </Modal>
     </>
   );
 }
