@@ -12,12 +12,12 @@ export function useDashboard() {
 
     products.forEach(p => {
       const threshold = p.threshold || settings.globalThreshold;
-      const stock = p.totalStock || p.total_stock || (p.sizes ? Object.values(p.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0);
+      const stock = p.total_stock !== undefined ? p.total_stock : (p.totalStock !== undefined ? p.totalStock : (p.sizes ? Object.values(p.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0));
       totalItems += stock;
       
-      if (p.totalStock === 0) {
+      if (stock === 0) {
         outOfStockCount++;
-      } else if (p.totalStock <= threshold) {
+      } else if (stock <= threshold) {
         lowStockCount++;
       }
     });
@@ -45,9 +45,14 @@ export function useDashboard() {
     return products
       .filter(p => {
         const threshold = p.threshold || settings.globalThreshold;
-        return p.totalStock <= threshold;
+        const stock = p.total_stock !== undefined ? p.total_stock : (p.totalStock !== undefined ? p.totalStock : (p.sizes ? Object.values(p.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0));
+        return stock <= threshold;
       })
-      .sort((a, b) => (a.totalStock || 0) - (b.totalStock || 0));
+      .sort((a, b) => {
+        const stockA = a.total_stock !== undefined ? a.total_stock : (a.totalStock !== undefined ? a.totalStock : (a.sizes ? Object.values(a.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0));
+        const stockB = b.total_stock !== undefined ? b.total_stock : (b.totalStock !== undefined ? b.totalStock : (b.sizes ? Object.values(b.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0));
+        return stockA - stockB;
+      });
   }, [products, settings.globalThreshold]);
 
   return {
