@@ -331,7 +331,7 @@ export function BarcodePage() {
 
                   <button
                     onClick={() => removeCartItem(item.id)}
-                    style={{ padding: '8px', backgroundColor: 'transparent', border: 'none', color: 'var(--error)', cursor: 'pointer' }}
+                    style={{ padding: '8px', backgroundColor: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
                     title="ลบรายการนี้"
                   >
                     <Trash2 size={20} />
@@ -377,7 +377,7 @@ export function BarcodePage() {
                 style={{
                   flex: 1,
                   padding: '16px',
-                  backgroundColor: 'var(--error)',
+                  backgroundColor: 'var(--danger)',
                   color: 'white',
                   border: 'none',
                   borderRadius: 'var(--radius-md)',
