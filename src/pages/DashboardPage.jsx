@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Package, AlertTriangle, AlertOctagon, TrendingUp } from 'lucide-react';
 import { useDashboard } from '../hooks/useDashboard';
 import { useAppContext } from '../context/AppContext';
@@ -82,36 +82,36 @@ export function DashboardPage() {
           title="สินค้าหมดสต็อก" 
           value={stats.outOfStockCount} 
           icon={AlertOctagon} 
-          color="#dc2626" 
+          color="#ef4444" 
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
         <StockChart />
         
+        {/* Low Stock Alert */}
         <div style={{
           backgroundColor: 'var(--bg-surface)',
           borderRadius: 'var(--radius-lg)',
           padding: '24px',
           border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)',
-          display: 'flex',
-          flexDirection: 'column'
+          boxShadow: 'var(--shadow-sm)'
         }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>สินค้าที่ต้องสั่งซื้อด่วน</h3>
+          
           {lowStockItems.length === 0 ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-              ไม่มีสินค้าที่ต้องสั่งซื้อ
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              ไม่มีสินค้าที่ใกล้หมด
             </div>
           ) : (
-            <div style={{ overflow: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ padding: '12px 0', color: 'var(--text-secondary)', fontWeight: 500 }}>ชื่อสินค้า</th>
-                    <th style={{ padding: '12px 0', color: 'var(--text-secondary)', fontWeight: 500 }}>หมวดหมู่</th>
-                    <th style={{ padding: '12px 0', color: 'var(--text-secondary)', fontWeight: 500 }}>จำนวนเหลือ</th>
-                    <th style={{ padding: '12px 0', color: 'var(--text-secondary)', fontWeight: 500 }}>สถานะ</th>
+                    <th style={{ padding: '12px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>ชื่อสินค้า</th>
+                    <th style={{ padding: '12px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>หมวดหมู่</th>
+                    <th style={{ padding: '12px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>จำนวนเหลือ</th>
+                    <th style={{ padding: '12px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>สถานะ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -142,9 +142,56 @@ export function DashboardPage() {
         border: '1px solid var(--border)',
         boxShadow: 'var(--shadow-sm)'
       }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-          📊 ตารางสต็อกแยกตามไซส์
-        </h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            📊 ตารางสต็อกแยกตามไซส์
+          </h3>
+          
+          {/* Category Tabs */}
+          {groupedStockMatrix.length > 0 && (
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+              <button
+                onClick={() => setActiveCategoryTab('ทั้งหมด')}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '20px',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  border: '1px solid',
+                  backgroundColor: activeCategoryTab === 'ทั้งหมด' ? 'var(--primary)' : 'transparent',
+                  color: activeCategoryTab === 'ทั้งหมด' ? '#ffffff' : 'var(--text-secondary)',
+                  borderColor: activeCategoryTab === 'ทั้งหมด' ? 'var(--primary)' : 'var(--border)',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s'
+                }}
+              >
+                ทั้งหมด
+              </button>
+              {groupedStockMatrix.map(group => (
+                <button
+                  key={group.category}
+                  onClick={() => setActiveCategoryTab(group.category)}
+                  style={{
+                    padding: '6px 16px',
+                    borderRadius: '20px',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    border: '1px solid',
+                    backgroundColor: activeCategoryTab === group.category ? 'var(--primary)' : 'transparent',
+                    color: activeCategoryTab === group.category ? '#ffffff' : 'var(--text-secondary)',
+                    borderColor: activeCategoryTab === group.category ? 'var(--primary)' : 'var(--border)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {group.category}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {groupedStockMatrix.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -152,11 +199,15 @@ export function DashboardPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            {groupedStockMatrix.map(group => (
+            {groupedStockMatrix
+              .filter(group => activeCategoryTab === 'ทั้งหมด' || group.category === activeCategoryTab)
+              .map(group => (
               <div key={group.category} style={{ overflowX: 'auto' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', fontWeight: 600, color: 'var(--primary)' }}>
-                  หมวดหมู่: {group.category}
-                </h4>
+                {activeCategoryTab === 'ทั้งหมด' && (
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', fontWeight: 600, color: 'var(--primary)' }}>
+                    หมวดหมู่: {group.category}
+                  </h4>
+                )}
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '0.875rem' }}>
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-main)' }}>
