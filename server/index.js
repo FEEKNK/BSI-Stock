@@ -197,14 +197,12 @@ app.post('/api/barcode-counter/next', async (req, res) => {
   }
 });
 
-// Get next product_code for a category (auto-assign)
+// Get next product_code (auto-assign globally across all categories)
 app.get('/api/next-product-code/:category', async (req, res) => {
   try {
-    const { category } = req.params;
     const { rows } = await query(
       `SELECT MAX(CAST(product_code AS INTEGER)) as max_code 
-       FROM products WHERE category = $1 AND product_code IS NOT NULL`,
-      [category]
+       FROM products WHERE product_code IS NOT NULL`
     );
     const nextCode = String((rows[0].max_code || 0) + 1).padStart(3, '0');
     res.json({ product_code: nextCode });
