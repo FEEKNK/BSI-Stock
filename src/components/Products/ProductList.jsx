@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Edit2, Trash2, Box, Printer } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatter';
 import { Badge } from '../common/Badge';
@@ -14,6 +14,16 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
       </div>
     );
   }
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [products]);
+
+  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const paginatedProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getStockStatus = (product) => {
     const threshold = product.threshold || settings.globalThreshold;
@@ -42,7 +52,7 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
           </tr>
         </thead>
         <tbody>
-          {products.map(product => {
+          {paginatedProducts.map(product => {
             const status = getStockStatus(product);
             return (
               <tr key={product.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -103,6 +113,80 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
           })}
         </tbody>
       </table>
+
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderTop: '1px solid var(--border)', backgroundColor: 'var(--bg-main)' }}>
+          <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            แสดง {((currentPage - 1) * itemsPerPage) + 1} ถึง {Math.min(currentPage * itemsPerPage, products.length)} จากทั้งหมด {products.length} รายการ
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border)',
+                backgroundColor: currentPage === 1 ? 'var(--bg-surface)' : 'var(--bg-main)',
+                color: currentPage === 1 ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              ก่อนหน้า
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const page = idx + 1;
+                // Simple pagination logic to show max 5 buttons (always first, last, and around current)
+                if (
+                  page === 1 || 
+                  page === totalPages || 
+                  (page >= currentPage - 1 && page <= currentPage + 1)
+                ) {
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid',
+                        borderColor: currentPage === page ? 'var(--primary)' : 'var(--border)',
+                        backgroundColor: currentPage === page ? 'var(--primary)' : 'var(--bg-main)',
+                        color: currentPage === page ? '#fff' : 'var(--text-primary)',
+                        cursor: 'pointer',
+                        fontWeight: currentPage === page ? 600 : 400
+                      }}
+                    >
+                      {page}
+                    </button>
+                  );
+                } else if (
+                  page === currentPage - 2 || 
+                  page === currentPage + 2
+                ) {
+                  return <span key={page} style={{ padding: '0 4px', color: 'var(--text-secondary)' }}>...</span>;
+                }
+                return null;
+              })}
+            </div>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border)',
+                backgroundColor: currentPage === totalPages ? 'var(--bg-surface)' : 'var(--bg-main)',
+                color: currentPage === totalPages ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              ถัดไป
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

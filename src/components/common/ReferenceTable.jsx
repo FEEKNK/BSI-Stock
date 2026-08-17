@@ -6,6 +6,8 @@ export function ReferenceTable() {
   const { products } = useAppContext();
   const [categoryCodes, setCategoryCodes] = useState([]);
   const [sizeCodes, setSizeCodes] = useState([]);
+  const [pppCurrentPage, setPppCurrentPage] = useState(1);
+  const pppItemsPerPage = 10;
 
   useEffect(() => {
     fetchData();
@@ -148,27 +150,99 @@ export function ReferenceTable() {
       {/* Product codes table */}
       <div>
         <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontWeight: 600 }}>🏷️ ตารางรหัสสินค้า (PPP)</h4>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-          <thead>
-            <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '2px solid var(--primary)' }}>
-              <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>รหัส (PPP)</th>
-              <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>ชื่อสินค้า</th>
-              <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>หมวดหมู่</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.filter(p => p.product_code).sort((a, b) => {
-              if (a.category !== b.category) return a.category.localeCompare(b.category);
-              return (a.product_code || '').localeCompare(b.product_code || '');
-            }).map((p, i) => (
-              <tr key={p.id} style={{ backgroundColor: i % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '10px 16px', fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>{p.product_code}</td>
-                <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>{p.name}</td>
-                <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{p.category}</td>
+        <div style={{ backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '2px solid var(--primary)' }}>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>รหัส (PPP)</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>ชื่อสินค้า</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>หมวดหมู่</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(() => {
+                const filteredProducts = products.filter(p => p.product_code).sort((a, b) => {
+                  if (a.category !== b.category) return (a.category || '').localeCompare(b.category || '');
+                  return (a.product_code || '').localeCompare(b.product_code || '');
+                });
+                const totalPages = Math.ceil(filteredProducts.length / pppItemsPerPage);
+                const paginatedProducts = filteredProducts.slice((pppCurrentPage - 1) * pppItemsPerPage, pppCurrentPage * pppItemsPerPage);
+
+                return (
+                  <>
+                    {paginatedProducts.map((p, i) => (
+                      <tr key={p.id} style={{ backgroundColor: i % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '10px 16px', fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>{p.product_code}</td>
+                        <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>{p.name}</td>
+                        <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{p.category}</td>
+                      </tr>
+                    ))}
+                    {totalPages > 1 && (
+                      <tr style={{ backgroundColor: 'var(--bg-main)' }}>
+                        <td colSpan={3} style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                              แสดง {((pppCurrentPage - 1) * pppItemsPerPage) + 1} ถึง {Math.min(pppCurrentPage * pppItemsPerPage, filteredProducts.length)} จากทั้งหมด {filteredProducts.length} รายการ
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                onClick={() => setPppCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={pppCurrentPage === 1}
+                                style={{
+                                  padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)',
+                                  backgroundColor: pppCurrentPage === 1 ? 'var(--bg-surface)' : 'var(--bg-main)',
+                                  color: pppCurrentPage === 1 ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                                  cursor: pppCurrentPage === 1 ? 'not-allowed' : 'pointer'
+                                }}
+                              >
+                                ก่อนหน้า
+                              </button>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {Array.from({ length: totalPages }).map((_, idx) => {
+                                  const page = idx + 1;
+                                  if (page === 1 || page === totalPages || (page >= pppCurrentPage - 1 && page <= pppCurrentPage + 1)) {
+                                    return (
+                                      <button
+                                        key={page} onClick={() => setPppCurrentPage(page)}
+                                        style={{
+                                          padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid',
+                                          borderColor: pppCurrentPage === page ? 'var(--primary)' : 'var(--border)',
+                                          backgroundColor: pppCurrentPage === page ? 'var(--primary)' : 'var(--bg-main)',
+                                          color: pppCurrentPage === page ? '#fff' : 'var(--text-primary)', cursor: 'pointer'
+                                        }}
+                                      >
+                                        {page}
+                                      </button>
+                                    );
+                                  } else if (page === pppCurrentPage - 2 || page === pppCurrentPage + 2) {
+                                    return <span key={page} style={{ padding: '0 4px', color: 'var(--text-secondary)' }}>...</span>;
+                                  }
+                                  return null;
+                                })}
+                              </div>
+                              <button
+                                onClick={() => setPppCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={pppCurrentPage === totalPages}
+                                style={{
+                                  padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)',
+                                  backgroundColor: pppCurrentPage === totalPages ? 'var(--bg-surface)' : 'var(--bg-main)',
+                                  color: pppCurrentPage === totalPages ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                                  cursor: pppCurrentPage === totalPages ? 'not-allowed' : 'pointer'
+                                }}
+                              >
+                                ถัดไป
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })()}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
