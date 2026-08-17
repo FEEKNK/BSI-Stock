@@ -55,6 +55,8 @@ export function DashboardPage() {
     return result;
   }, [products]);
 
+  const [activeCategoryTab, setActiveCategoryTab] = useState('ทั้งหมด');
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>ภาพรวมคลังสินค้า</h1>
