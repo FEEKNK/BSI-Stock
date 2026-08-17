@@ -47,13 +47,13 @@ app.get('/api/size-codes', async (req, res) => {
 // Create product
 app.post('/api/products', async (req, res) => {
   try {
-    const { name, category, price, barcode, description, threshold, sizes, totalStock } = req.body;
+    const { name, category, price, barcode, description, threshold, sizes, totalStock, product_code } = req.body;
     const q = `
-      INSERT INTO products (name, category, price, barcode, description, threshold, sizes, total_stock)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO products (name, category, price, barcode, description, threshold, sizes, total_stock, product_code)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
-    const values = [name, category, price || 0, barcode, description, threshold, JSON.stringify(sizes), totalStock];
+    const values = [name, category, price || 0, barcode, description, threshold, JSON.stringify(sizes), totalStock, product_code || null];
     const { rows } = await query(q, values);
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -66,15 +66,15 @@ app.post('/api/products', async (req, res) => {
 app.put('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, category, price, barcode, description, threshold, sizes, totalStock } = req.body;
+    const { name, category, price, barcode, description, threshold, sizes, totalStock, product_code } = req.body;
     const q = `
       UPDATE products 
       SET name = $1, category = $2, price = $3, barcode = $4, description = $5, 
-          threshold = $6, sizes = $7, total_stock = $8, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $9
+          threshold = $6, sizes = $7, total_stock = $8, product_code = $9, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $10
       RETURNING *
     `;
-    const values = [name, category, price || 0, barcode, description, threshold, JSON.stringify(sizes), totalStock, id];
+    const values = [name, category, price || 0, barcode, description, threshold, JSON.stringify(sizes), totalStock, product_code || null, id];
     const { rows } = await query(q, values);
     if (rows.length === 0) return res.status(404).json({ error: 'Product not found' });
     res.json(rows[0]);
