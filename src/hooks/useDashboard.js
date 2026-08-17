@@ -43,16 +43,15 @@ export function useDashboard() {
 
   const lowStockItems = useMemo(() => {
     return products
+      .map(p => {
+        const stock = p.total_stock !== undefined ? p.total_stock : (p.totalStock !== undefined ? p.totalStock : (p.sizes ? Object.values(p.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0));
+        return { ...p, computedStock: stock };
+      })
       .filter(p => {
         const threshold = p.threshold || settings.globalThreshold;
-        const stock = p.total_stock !== undefined ? p.total_stock : (p.totalStock !== undefined ? p.totalStock : (p.sizes ? Object.values(p.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0));
-        return stock <= threshold;
+        return p.computedStock <= threshold;
       })
-      .sort((a, b) => {
-        const stockA = a.total_stock !== undefined ? a.total_stock : (a.totalStock !== undefined ? a.totalStock : (a.sizes ? Object.values(a.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0));
-        const stockB = b.total_stock !== undefined ? b.total_stock : (b.totalStock !== undefined ? b.totalStock : (b.sizes ? Object.values(b.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0));
-        return stockA - stockB;
-      });
+      .sort((a, b) => a.computedStock - b.computedStock);
   }, [products, settings.globalThreshold]);
 
   return {

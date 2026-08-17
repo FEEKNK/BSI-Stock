@@ -112,10 +112,10 @@ export function DashboardPage() {
                     <tr key={item.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                       <td style={{ padding: '12px 0', fontWeight: 500, color: 'var(--text-primary)' }}>{item.name}</td>
                       <td style={{ padding: '12px 0', color: 'var(--text-secondary)' }}>{item.category}</td>
-                      <td style={{ padding: '12px 0', fontWeight: 600, color: 'var(--text-primary)' }}>{item.totalStock}</td>
+                      <td style={{ padding: '12px 0', fontWeight: 600, color: 'var(--text-primary)' }}>{item.computedStock}</td>
                       <td style={{ padding: '12px 0' }}>
-                        <Badge type={item.totalStock === 0 ? 'danger' : 'warning'}>
-                          {item.totalStock === 0 ? 'หมด' : 'ใกล้หมด'}
+                        <Badge type={item.computedStock === 0 ? 'danger' : 'warning'}>
+                          {item.computedStock === 0 ? 'หมด' : 'ใกล้หมด'}
                         </Badge>
                       </td>
                     </tr>

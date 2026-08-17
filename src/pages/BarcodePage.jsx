@@ -141,7 +141,7 @@ export function BarcodePage() {
           ) : activeTab === 'generate' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '400px', margin: '0 auto' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontWeight: 500 }}>ป้อนรหัส หรือ สุ่มบาร์โค้ด</label>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontWeight: 500 }}>ป้อนรหัสบาร์โค้ดที่ต้องการทดลองสร้าง</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
@@ -152,16 +152,8 @@ export function BarcodePage() {
                       borderRadius: 'var(--radius-md)', border: '1px solid var(--border)',
                       backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)'
                     }}
+                    placeholder="ป้อนรหัส 12 หลัก..."
                   />
-                  <button
-                    onClick={handleGenerate}
-                    style={{
-                      padding: '0 16px', backgroundColor: 'var(--primary)', color: 'white',
-                      borderRadius: 'var(--radius-md)', fontWeight: 500
-                    }}
-                  >
-                    สุ่มบาร์โค้ด
-                  </button>
                 </div>
               </div>
               

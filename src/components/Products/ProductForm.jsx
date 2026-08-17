@@ -232,23 +232,6 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
               >
                 <Camera size={16} /> สแกน
               </button>
-              <button
-                type="button"
-                onClick={handleGenerateBarcode}
-                style={{
-                  padding: '0 14px',
-                  backgroundColor: 'var(--bg-main)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                  borderRadius: 'var(--radius-md)',
-                  whiteSpace: 'nowrap',
-                  fontWeight: 500,
-                  fontSize: '0.875rem'
-                }}
-                title="สุ่มสร้างรหัสบาร์โค้ดใหม่"
-              >
-                สุ่ม
-              </button>
             </div>
           </div>
         </div>
