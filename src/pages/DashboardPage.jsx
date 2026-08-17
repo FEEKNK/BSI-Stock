@@ -11,41 +11,48 @@ export function DashboardPage() {
   const { products } = useAppContext();
 
   // Build the stock matrix (like the paper sheet)
-  const stockMatrix = useMemo(() => {
-    // Collect all unique sizes across all products
+  const groupedStockMatrix = useMemo(() => {
     const sizeOrder = ['free size', 'ฟรีไซส์', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '32', '34', '36', '38', '40', '42', '44', '46', '48', '50'];
-    const allSizesSet = new Set();
-    
-    // We want ALL products, not just those with sizes, to match the paper columns perfectly.
-    // Let's also order them exactly like the paper: Sabina, Anne, Avie, Wacoal, เกาะอก, ผ้าคลุมหน้าอก
     const paperOrder = ['Sabina', 'Anne', 'Avie', 'Wacoal', 'เกาะอก', 'ผ้าคลุมหน้าอก'];
     
-    const sortedProducts = [...products].sort((a, b) => {
-      const idxA = paperOrder.indexOf(a.name);
-      const idxB = paperOrder.indexOf(b.name);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
-      return (a.product_code || '').localeCompare(b.product_code || '');
-    });
-    
-    sortedProducts.forEach(p => {
+    // Group by category
+    const grouped = {};
+    products.forEach(p => {
+      const cat = p.category || 'ไม่มีหมวดหมู่';
+      if (!grouped[cat]) grouped[cat] = { products: [], sizesSet: new Set() };
+      grouped[cat].products.push(p);
       if (p.sizes) {
-        Object.keys(p.sizes).forEach(s => allSizesSet.add(s));
+        Object.keys(p.sizes).forEach(s => grouped[cat].sizesSet.add(s));
       }
     });
 
-    // Sort sizes by predefined order
-    const allSizes = [...allSizesSet].sort((a, b) => {
-      const ia = sizeOrder.indexOf(a);
-      const ib = sizeOrder.indexOf(b);
-      if (ia === -1 && ib === -1) return a.localeCompare(b);
-      if (ia === -1) return 1;
-      if (ib === -1) return -1;
-      return ia - ib;
+    // Format and sort each group
+    const result = [];
+    Object.keys(grouped).sort().forEach(cat => {
+      const data = grouped[cat];
+      
+      data.products.sort((a, b) => {
+        const idxA = paperOrder.indexOf(a.name);
+        const idxB = paperOrder.indexOf(b.name);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return (a.product_code || '').localeCompare(b.product_code || '');
+      });
+
+      const allSizes = [...data.sizesSet].sort((a, b) => {
+        const ia = sizeOrder.indexOf(a);
+        const ib = sizeOrder.indexOf(b);
+        if (ia === -1 && ib === -1) return a.localeCompare(b);
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      });
+
+      result.push({ category: cat, products: data.products, sizes: allSizes });
     });
 
-    return { productsWithSizes: sortedProducts, allSizes };
+    return result;
   }, [products]);
 
   return (
@@ -139,71 +146,86 @@ export function DashboardPage() {
           📊 ตารางสต็อกแยกตามไซส์
         </h3>
 
-        {stockMatrix.productsWithSizes.length === 0 ? (
+        {groupedStockMatrix.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
             ยังไม่มีข้อมูลสต็อก
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '0.875rem' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-main)' }}>
-                  <th style={{
-                    padding: '12px 16px', textAlign: 'center', fontWeight: 700,
-                    color: 'var(--text-primary)', border: '1px solid var(--border)',
-                    borderBottom: '2px solid var(--primary)',
-                    position: 'sticky', left: 0, backgroundColor: 'var(--bg-main)', zIndex: 1, minWidth: '120px'
-                  }}>
-                    สินค้า \ ไซส์
-                  </th>
-                  {stockMatrix.allSizes.map(size => (
-                    <th key={size} style={{
-                      padding: '12px 16px', fontWeight: 600,
-                      color: 'var(--primary)', border: '1px solid var(--border)',
-                      borderBottom: '2px solid var(--primary)', minWidth: '70px',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {size}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {stockMatrix.productsWithSizes.map((p, idx) => (
-                  <tr key={p.id} style={{ backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)' }}>
-                    <td style={{
-                      padding: '10px 16px', fontWeight: 600, textAlign: 'left',
-                      color: 'var(--text-primary)', border: '1px solid var(--border)',
-                      position: 'sticky', left: 0,
-                      backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', zIndex: 1
-                    }}>
-                      {p.name}
-                    </td>
-                    {stockMatrix.allSizes.map(size => {
-                      const sizeData = p.sizes?.[size];
-                      const stock = sizeData
-                        ? (typeof sizeData === 'object' ? sizeData.stock : Number(sizeData))
-                        : null;
-                      
-                      return (
-                        <td key={size} style={{
-                          padding: '10px 16px',
-                          fontWeight: stock !== null ? 600 : 400,
-                          backgroundColor: stock === null ? '#94a3b8' : 'transparent', // ถมสีเทาเข้มแบบในกระดาษ
-                          color: stock === null ? 'transparent' 
-                            : stock === 0 ? 'var(--danger)' 
-                            : stock <= 5 ? 'var(--warning)' 
-                            : 'var(--text-primary)',
-                          border: '1px solid var(--border)', // ตีเส้นตารางทุกช่องแบบตารางจริง
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            {groupedStockMatrix.map(group => (
+              <div key={group.category} style={{ overflowX: 'auto' }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', fontWeight: 600, color: 'var(--primary)' }}>
+                  หมวดหมู่: {group.category}
+                </h4>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-main)' }}>
+                      <th style={{
+                        padding: '12px 16px', textAlign: 'center', fontWeight: 700,
+                        color: 'var(--text-primary)', border: '1px solid var(--border)',
+                        borderBottom: '2px solid var(--primary)',
+                        position: 'sticky', left: 0, backgroundColor: 'var(--bg-main)', zIndex: 1, minWidth: '120px'
+                      }}>
+                        สินค้า \ ไซส์
+                      </th>
+                      {group.sizes.length === 0 ? (
+                        <th style={{ padding: '12px 16px', border: '1px solid var(--border)', borderBottom: '2px solid var(--primary)', color: 'var(--text-tertiary)' }}>ไม่มีข้อมูลไซส์</th>
+                      ) : (
+                        group.sizes.map(size => (
+                          <th key={size} style={{
+                            padding: '12px 16px', fontWeight: 600,
+                            color: 'var(--primary)', border: '1px solid var(--border)',
+                            borderBottom: '2px solid var(--primary)', minWidth: '70px',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {size}
+                          </th>
+                        ))
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.products.map((p, idx) => (
+                      <tr key={p.id} style={{ backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)' }}>
+                        <td style={{
+                          padding: '10px 16px', fontWeight: 600, textAlign: 'left',
+                          color: 'var(--text-primary)', border: '1px solid var(--border)',
+                          position: 'sticky', left: 0,
+                          backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', zIndex: 1
                         }}>
-                          {stock !== null ? stock : ''}
+                          {p.name}
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        {group.sizes.length === 0 ? (
+                          <td style={{ border: '1px solid var(--border)', backgroundColor: '#94a3b8' }}></td>
+                        ) : (
+                          group.sizes.map(size => {
+                            const sizeData = p.sizes?.[size];
+                            const stock = sizeData
+                              ? (typeof sizeData === 'object' ? sizeData.stock : Number(sizeData))
+                              : null;
+                            
+                            return (
+                              <td key={size} style={{
+                                padding: '10px 16px',
+                                fontWeight: stock !== null ? 600 : 400,
+                                backgroundColor: stock === null ? '#94a3b8' : 'transparent',
+                                color: stock === null ? 'transparent' 
+                                  : stock === 0 ? 'var(--danger)' 
+                                  : stock <= 5 ? 'var(--warning)' 
+                                  : 'var(--text-primary)',
+                                border: '1px solid var(--border)',
+                              }}>
+                                {stock !== null ? stock : ''}
+                              </td>
+                            );
+                          })
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </div>
         )}
       </div>
