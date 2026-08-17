@@ -75,9 +75,12 @@ export function BarcodePage() {
     setCart(prevCart => {
       const existingItemIndex = prevCart.findIndex(item => item.id === cartItemId);
       if (existingItemIndex >= 0) {
-        // Increment quantity
+        // Increment quantity immutably (fixes Strict Mode double-increment bug)
         const newCart = [...prevCart];
-        newCart[existingItemIndex].quantity += 1;
+        newCart[existingItemIndex] = {
+          ...newCart[existingItemIndex],
+          quantity: newCart[existingItemIndex].quantity + 1
+        };
         return newCart;
       } else {
         // Add new item to TOP of the cart
