@@ -14,6 +14,7 @@ export function ProductsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerManualInput, setScannerManualInput] = useState('');
   const [productToDelete, setProductToDelete] = useState(null);
   const [productToPrint, setProductToPrint] = useState(null);
   
@@ -39,12 +40,20 @@ export function ProductsPage() {
 
   const handleScanBarcode = (decodedText) => {
     setIsScannerOpen(false);
+    setScannerManualInput('');
     // Find if product already exists
     const existing = products.find(p => p.barcode === decodedText);
     if (existing) {
       handleOpenModal(existing);
     } else {
       handleOpenModal({ barcode: decodedText });
+    }
+  };
+
+  const handleManualScanSubmit = (e) => {
+    e.preventDefault();
+    if (scannerManualInput.trim()) {
+      handleScanBarcode(scannerManualInput.trim());
     }
   };
 
@@ -196,16 +205,57 @@ export function ProductsPage() {
       <Modal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
-        title="สแกนบาร์โค้ดเพื่อค้นหาหรือเพิ่มสินค้า"
+        title="สแกนหรือพิมพ์บาร์โค้ดเพื่อค้นหา/เพิ่มสินค้า"
       >
         <div style={{ textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.875rem' }}>
-            ส่องกล้องไปที่บาร์โค้ดสินค้า (หากพบในระบบจะเปิดหน้าแก้ไข/เพิ่มสต็อกให้ทันที หรือหากยังไม่มีจะเปิดหน้าเพิ่มสินค้าใหม่)
-          </p>
-          <BarcodeScanner 
-            elementId="products-page-scanner" 
-            onScan={handleScanBarcode} 
-          />
+          <form onSubmit={handleManualScanSubmit} style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+            <input
+              type="text"
+              value={scannerManualInput}
+              onChange={(e) => setScannerManualInput(e.target.value)}
+              placeholder="สแกนหรือพิมพ์บาร์โค้ดที่นี่ แล้วกด Enter..."
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-md)',
+                border: '2px solid var(--primary)',
+                fontSize: '1rem',
+                fontFamily: 'monospace',
+                backgroundColor: 'var(--bg-main)',
+                color: 'var(--text-primary)'
+              }}
+              autoFocus
+            />
+            <button
+              type="submit"
+              style={{
+                padding: '0 24px',
+                backgroundColor: 'var(--primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 600,
+                fontSize: '1rem',
+                cursor: 'pointer'
+              }}
+            >
+              ตกลง
+            </button>
+          </form>
+
+          <div style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--bg-surface)', padding: '0 12px', color: 'var(--text-tertiary)', fontSize: '0.875rem', zIndex: 1 }}>
+              หรือใช้กล้องสแกน
+            </div>
+            <div style={{ borderTop: '1px solid var(--border)', margin: '0 0 24px 0' }}></div>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.875rem' }}>
+              (หากพบในระบบจะเปิดหน้าแก้ไข/เพิ่มสต็อกให้ทันที หรือหากยังไม่มีจะเปิดหน้าเพิ่มสินค้าใหม่)
+            </p>
+            <BarcodeScanner 
+              elementId="products-page-scanner" 
+              onScan={handleScanBarcode} 
+            />
+          </div>
         </div>
       </Modal>
 

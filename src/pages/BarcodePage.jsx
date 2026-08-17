@@ -11,6 +11,7 @@ export function BarcodePage() {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [newProductBarcode, setNewProductBarcode] = useState('');
+  const [manualBarcode, setManualBarcode] = useState('');
   
   // Quick stock adjustment state
   const [editingSizes, setEditingSizes] = useState({});
@@ -37,6 +38,14 @@ export function BarcodePage() {
 
   const handleScanError = (error) => {
     // silent ignore
+  };
+
+  const handleManualSubmit = (e) => {
+    e.preventDefault();
+    if (manualBarcode.trim()) {
+      handleScanSuccess(manualBarcode.trim());
+      setManualBarcode('');
+    }
   };
 
   const handleGenerate = () => {
@@ -97,9 +106,48 @@ export function BarcodePage() {
         boxShadow: 'var(--shadow-sm)'
       }}>
         <div style={{ padding: '32px' }}>
-          <div>
-            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-              อนุญาตให้เบราว์เซอร์เข้าถึงกล้องเพื่อสแกนบาร์โค้ด (สามารถเพิ่มสต็อกได้ทันทีที่สแกนเจอ)
+          <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+            <input
+              type="text"
+              value={manualBarcode}
+              onChange={(e) => setManualBarcode(e.target.value)}
+              placeholder="สแกนหรือพิมพ์บาร์โค้ดที่นี่ แล้วกด Enter..."
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-md)',
+                border: '2px solid var(--primary)',
+                fontSize: '1.125rem',
+                fontFamily: 'monospace',
+                backgroundColor: 'var(--bg-main)',
+                color: 'var(--text-primary)'
+              }}
+              autoFocus
+            />
+            <button
+              type="submit"
+              style={{
+                padding: '0 24px',
+                backgroundColor: 'var(--primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 600,
+                fontSize: '1rem',
+                cursor: 'pointer'
+              }}
+            >
+              ค้นหา
+            </button>
+          </form>
+
+          <div style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--bg-surface)', padding: '0 12px', color: 'var(--text-tertiary)', fontSize: '0.875rem', zIndex: 1 }}>
+              หรือใช้กล้องสแกน
+            </div>
+            <div style={{ borderTop: '1px solid var(--border)', margin: '0 0 24px 0' }}></div>
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              อนุญาตให้เบราว์เซอร์เข้าถึงกล้องเพื่อสแกนบาร์โค้ด
             </p>
             <BarcodeScanner elementId="page-barcode-scanner" onScan={handleScanSuccess} onError={handleScanError} />
           </div>
