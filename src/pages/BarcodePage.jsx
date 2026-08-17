@@ -3,26 +3,25 @@ import { BarcodeScanner } from '../components/Barcode/BarcodeScanner';
 import { useProducts } from '../hooks/useProducts';
 import { Modal } from '../components/common/Modal';
 import { ProductForm } from '../components/Products/ProductForm';
-import { Plus, Minus, Check, PackagePlus, Box, ScanLine } from 'lucide-react';
+import { Plus, Minus, Check, PackagePlus, Box, ScanLine, ShoppingCart, Trash2, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import { formatCurrency } from '../utils/formatter';
 
 export function BarcodePage() {
-  const [scanResult, setScanResult] = useState(null);
+  const { products, getProductByBarcode, updateProductStock, addProduct } = useProducts();
+  
+  // Cart state: Array of { id, product, matchedSize, quantity }
+  const [cart, setCart] = useState([]);
+  
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [newProductBarcode, setNewProductBarcode] = useState('');
   const [manualBarcode, setManualBarcode] = useState('');
   
-  // Quick stock adjustment state
-  const [editingSizes, setEditingSizes] = useState({});
   const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
-  const [lastScannedTime, setLastScannedTime] = useState(Date.now());
-
-  const { getProductByBarcode, updateProductStock, addProduct } = useProducts();
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+  
   const manualInputRef = useRef(null);
-  const saveTimeoutRef = useRef(null);
 
-  // Play beep sound for successful scan increment
+  // Play beep sound
   const playBeep = () => {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -30,7 +29,7 @@ export function BarcodePage() {
       const gainNode = audioCtx.createGain();
       
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); 
       oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
       
       gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
@@ -46,89 +45,60 @@ export function BarcodePage() {
     }
   };
 
-  // Debounced Auto-Save function
-  const triggerAutoSave = useCallback((productId, newSizes) => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    
-    setSaveSuccessMsg(false);
-    setIsSaving(true);
-    
-    saveTimeoutRef.current = setTimeout(async () => {
-      const totalStock = Object.values(newSizes).reduce((sum, sizeData) => {
-        const stock = typeof sizeData === 'number' || typeof sizeData === 'string' ? sizeData : sizeData?.stock;
-        return sum + (Number(stock) || 0);
-      }, 0);
-
-      await updateProductStock(productId, newSizes, totalStock);
-      
-      setIsSaving(false);
-      setSaveSuccessMsg(true);
-      
-      setTimeout(() => setSaveSuccessMsg(false), 2000);
-    }, 500); // Wait 500ms after last scan/edit to save
-  }, [updateProduct]);
-
   const handleScanSuccess = useCallback((decodedText) => {
-    setLastScannedTime(Date.now());
+    const match = getProductByBarcode(decodedText);
+    const product = match?.product || null;
+
+    if (!product) {
+      // Product not found
+      setNewProductBarcode(decodedText);
+      setIsAddProductModalOpen(true);
+      return;
+    }
+
+    // Determine which size to add. If no specific matchedSize, we might need them to pick one, 
+    // but for now, if a product has no sizes, we use a default key or just standard update.
+    // Let's assume matchedSize exists or fallback to first available size.
+    const sizeKeys = Object.keys(product.sizes || {});
+    let targetSize = match.matchedSize;
     
-    setScanResult(prevResult => {
-      const match = getProductByBarcode(decodedText);
-      const product = match?.product || null;
+    if (!targetSize && sizeKeys.length > 0) {
+      // If they scanned the main product barcode, just default to the first size for simplicity in cart,
+      // or we can prompt them. Let's use the first size as a fallback.
+      targetSize = sizeKeys[0];
+    } else if (!targetSize) {
+      targetSize = "Default"; // fallback if product literally has no sizes defined yet
+    }
 
-      if (!product) {
-        return {
-          barcode: decodedText,
-          product: null,
-          matchedSize: null
-        };
+    const cartItemId = `${product.id}_${targetSize}`;
+
+    setCart(prevCart => {
+      const existingItemIndex = prevCart.findIndex(item => item.id === cartItemId);
+      if (existingItemIndex >= 0) {
+        // Increment quantity
+        const newCart = [...prevCart];
+        newCart[existingItemIndex].quantity += 1;
+        return newCart;
+      } else {
+        // Add new item to TOP of the cart
+        return [{
+          id: cartItemId,
+          product: product,
+          matchedSize: targetSize,
+          barcodeScanned: decodedText,
+          quantity: 1
+        }, ...prevCart];
       }
-
-      // Check if this is a repeated scan of the SAME barcode
-      if (prevResult?.product?.id === product.id && prevResult?.barcode === decodedText && match.matchedSize) {
-        // Increment the specific size
-        setEditingSizes(prevSizes => {
-          const currentSizeData = prevSizes[match.matchedSize] || {};
-          const isOldFormat = typeof currentSizeData === 'number' || typeof currentSizeData === 'string';
-          const currentStock = isOldFormat ? Number(currentSizeData) : (currentSizeData?.stock || 0);
-          
-          const newSizes = {
-            ...prevSizes,
-            [match.matchedSize]: isOldFormat ? (currentStock + 1) : { ...currentSizeData, stock: currentStock + 1 }
-          };
-          
-          // Debounce auto-save
-          triggerAutoSave(product.id, newSizes);
-          
-          return newSizes;
-        });
-        
-        playBeep();
-        
-        return {
-          ...prevResult,
-          barcode: decodedText,
-          matchedSize: match.matchedSize
-        };
-      }
-
-      // It's a new product or different barcode entirely
-      setEditingSizes(product.sizes || {});
-      playBeep();
-      return {
-        barcode: decodedText,
-        product: product,
-        matchedSize: match?.matchedSize || null
-      };
     });
+
+    playBeep();
     
-    // Focus back to manual input so scanner can keep typing
+    // Focus back to manual input
     setTimeout(() => {
       if (manualInputRef.current) manualInputRef.current.focus();
     }, 50);
 
-  }, [getProductByBarcode, triggerAutoSave]);
+  }, [getProductByBarcode]);
 
   const handleScanError = (error) => {
     // silent ignore
@@ -142,61 +112,87 @@ export function BarcodePage() {
     }
   };
 
-  const handleSizeQtyChange = (size, newValue) => {
-    if (!scanResult || !scanResult.product) return;
-    
-    const parsedValue = Math.max(0, parseInt(newValue) || 0);
-    
-    setEditingSizes(prev => {
-      const currentSizeData = prev[size] || {};
-      const isOldFormat = typeof currentSizeData === 'number' || typeof currentSizeData === 'string';
-      const newSizes = {
-        ...prev,
-        [size]: isOldFormat ? parsedValue : { ...currentSizeData, stock: parsedValue }
-      };
-      
-      triggerAutoSave(scanResult.product.id, newSizes);
-      return newSizes;
-    });
+  const updateCartItemQuantity = (cartItemId, newQty) => {
+    const qty = Math.max(1, parseInt(newQty) || 1); // minimum 1 in cart
+    setCart(prev => prev.map(item => item.id === cartItemId ? { ...item, quantity: qty } : item));
   };
 
-  const handleSizeQtyAdjust = (size, delta) => {
-    if (!scanResult || !scanResult.product) return;
-    
-    setEditingSizes(prev => {
-      const currentSizeData = prev[size] || {};
-      const isOldFormat = typeof currentSizeData === 'number' || typeof currentSizeData === 'string';
-      const currentStock = isOldFormat ? Number(currentSizeData) : (currentSizeData?.stock || 0);
-      const updatedStock = Math.max(0, currentStock + delta);
-      
-      const newSizes = {
-        ...prev,
-        [size]: isOldFormat ? updatedStock : { ...currentSizeData, stock: updatedStock }
-      };
-      
-      triggerAutoSave(scanResult.product.id, newSizes);
-      return newSizes;
-    });
+  const removeCartItem = (cartItemId) => {
+    setCart(prev => prev.filter(item => item.id !== cartItemId));
   };
 
-  const handleOpenAddProduct = () => {
-    setNewProductBarcode(scanResult?.barcode || '');
-    setIsAddProductModalOpen(true);
+  // Helper to commit changes
+  const processStock = async (mode) => {
+    if (cart.length === 0) return;
+    setIsSaving(true);
+    setSaveSuccessMsg('');
+
+    try {
+      // Group cart items by productId
+      const groupedByProduct = {};
+      cart.forEach(item => {
+        if (!groupedByProduct[item.product.id]) {
+          groupedByProduct[item.product.id] = [];
+        }
+        groupedByProduct[item.product.id].push(item);
+      });
+
+      // Process each product
+      for (const productId of Object.keys(groupedByProduct)) {
+        // Get fresh product data from context
+        const freshProduct = products.find(p => p.id === productId);
+        if (!freshProduct) continue;
+
+        let newSizes = { ...(freshProduct.sizes || {}) };
+        const cartItems = groupedByProduct[productId];
+
+        // Apply adjustments
+        cartItems.forEach(cartItem => {
+          const size = cartItem.matchedSize;
+          const currentSizeData = newSizes[size] || {};
+          const isOldFormat = typeof currentSizeData === 'number' || typeof currentSizeData === 'string';
+          const oldStock = isOldFormat ? Number(currentSizeData) : (currentSizeData?.stock || 0);
+          
+          let newStock = oldStock;
+          if (mode === 'IN') {
+            newStock += cartItem.quantity;
+          } else if (mode === 'OUT') {
+            newStock = Math.max(0, newStock - cartItem.quantity);
+          }
+
+          newSizes[size] = isOldFormat ? newStock : { ...currentSizeData, stock: newStock };
+        });
+
+        // Calculate new total stock
+        const totalStock = Object.values(newSizes).reduce((sum, sizeData) => {
+          const stock = typeof sizeData === 'number' || typeof sizeData === 'string' ? sizeData : sizeData?.stock;
+          return sum + (Number(stock) || 0);
+        }, 0);
+
+        // Save to DB
+        await updateProductStock(productId, newSizes, totalStock);
+      }
+
+      setSaveSuccessMsg(`บันทึกสต็อกเรียบร้อยแล้ว (${mode === 'IN' ? 'รับเข้า' : 'เบิกออก'})`);
+      setCart([]); // Clear cart
+      
+      setTimeout(() => setSaveSuccessMsg(''), 3000);
+      if (manualInputRef.current) manualInputRef.current.focus();
+
+    } catch (err) {
+      console.error('Failed to process stock', err);
+      alert('เกิดข้อผิดพลาดในการบันทึกสต็อก');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddProductSubmit = async (data) => {
     await addProduct(data);
     setIsAddProductModalOpen(false);
-    // Re-scan it so it shows up
+    // Re-scan it so it gets added to cart
     handleScanSuccess(newProductBarcode);
   };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
-  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '800px', margin: '0 auto', paddingBottom: '100px' }}>
@@ -256,159 +252,148 @@ export function BarcodePage() {
         </div>
       </div>
 
-      {/* INLINE Scan Result */}
-      {scanResult && (
-        <div 
-          key={lastScannedTime} 
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '24px',
-            border: '2px solid var(--primary)',
-            boxShadow: '0 4px 12px rgba(14, 165, 233, 0.15)',
-            animation: 'pulse-border 0.5s ease-out'
-          }}
-        >
-          <style>{`
-            @keyframes pulse-border {
-              0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4); }
-              70% { box-shadow: 0 0 0 15px rgba(14, 165, 233, 0); }
-              100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
-            }
-          `}</style>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 600, marginBottom: '4px' }}>
-                <ScanLine size={18} />
-                <span>รหัสล่าสุด: {scanResult.barcode}</span>
-              </div>
-            </div>
-            
-            <div>
-              {isSaving ? (
-                <Badge type="warning">กำลังบันทึก...</Badge>
-              ) : saveSuccessMsg ? (
-                <Badge type="success"><Check size={12} style={{marginRight: 4}}/> บันทึกแล้ว</Badge>
-              ) : null}
-            </div>
+      {saveSuccessMsg && (
+        <div style={{ padding: '16px', backgroundColor: 'var(--success-bg)', color: 'var(--success)', borderRadius: 'var(--radius-md)', textAlign: 'center', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <Check size={20} /> {saveSuccessMsg}
+        </div>
+      )}
+
+      {/* Cart View */}
+      {cart.length > 0 && (
+        <div style={{
+          backgroundColor: 'var(--bg-surface)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '24px',
+          border: '2px solid var(--primary)',
+          boxShadow: '0 4px 12px rgba(14, 165, 233, 0.15)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+            <ShoppingCart size={24} color="var(--primary)" />
+            <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)' }}>รายการสินค้าที่สแกน ({cart.length} รายการ)</h2>
           </div>
 
-          {scanResult.product ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ width: '56px', height: '56px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Box size={32} />
-                </div>
-                <div>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', color: 'var(--text-primary)' }}>{scanResult.product.name}</h3>
-                  <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                    หมวดหมู่: {scanResult.product.category}
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ padding: '20px', backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-                <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                  {scanResult.matchedSize ? `อัปเดตสต็อก (ไซส์: ${scanResult.matchedSize})` : `อัปเดตสต็อกทุกไซส์:`}
-                </h4>
-                
-                {Object.keys(editingSizes).length === 0 ? (
-                  <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                    สินค้านี้ยังไม่ได้ระบุไซส์
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {cart.map((item) => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Box size={24} />
                   </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {Object.entries(editingSizes).map(([size, sizeData]) => {
-                      if (scanResult.matchedSize && size !== scanResult.matchedSize) return null;
-
-                      const isOldFormat = typeof sizeData === 'number' || typeof sizeData === 'string';
-                      const qty = isOldFormat ? Number(sizeData) : (sizeData?.stock || 0);
-                      const isHighlighted = scanResult.matchedSize === size;
-
-                      return (
-                        <div key={size} style={{ 
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                          padding: '12px 16px', 
-                          backgroundColor: isHighlighted ? 'rgba(14, 165, 233, 0.05)' : 'white', 
-                          border: `1px solid ${isHighlighted ? 'var(--primary)' : 'var(--border)'}`, 
-                          borderRadius: 'var(--radius-md)' 
-                        }}>
-                          <span style={{ fontWeight: 600, fontSize: '1.125rem', color: isHighlighted ? 'var(--primary)' : 'var(--text-primary)' }}>{size}</span>
-                          
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleSizeQtyAdjust(size, -1)}
-                              style={{ padding: '8px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', cursor: 'pointer' }}
-                            >
-                              <Minus size={16} />
-                            </button>
-                            
-                            <input
-                              type="number"
-                              value={qty}
-                              onChange={(e) => handleSizeQtyChange(size, e.target.value)}
-                              style={{ 
-                                width: '80px', 
-                                textAlign: 'center', 
-                                fontSize: '1.25rem', 
-                                fontWeight: 700,
-                                padding: '8px',
-                                border: '1px solid var(--border)',
-                                borderRadius: 'var(--radius-sm)',
-                                color: 'var(--text-primary)',
-                                backgroundColor: 'white'
-                              }}
-                              min="0"
-                            />
-                            
-                            <button
-                              type="button"
-                              onClick={() => handleSizeQtyAdjust(size, 1)}
-                              style={{ padding: '8px', backgroundColor: 'var(--primary-light)', border: '1px solid var(--primary)', borderRadius: 'var(--radius-sm)', color: 'var(--primary)', cursor: 'pointer' }}
-                            >
-                              <Plus size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div>
+                    <h3 style={{ margin: '0 0 4px 0', fontSize: '1.125rem', color: 'var(--text-primary)' }}>{item.product.name}</h3>
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                      <span>ไซส์: <strong style={{ color: 'var(--text-primary)' }}>{item.matchedSize}</strong></span>
+                      <span>|</span>
+                      <span>บาร์โค้ด: {item.barcodeScanned}</span>
+                    </div>
                   </div>
-                )}
-                
-                <p style={{ margin: '16px 0 0 0', fontSize: '0.875rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
-                  ระบบจะบันทึกให้อัตโนมัติ สามารถสแกนซ้ำหรือสแกนชิ้นต่อไปได้เลย หรือจิ้มที่ช่องเพื่อพิมพ์ตัวเลข
-                </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => updateCartItemQuantity(item.id, item.quantity - 1)}
+                      style={{ padding: '8px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--text-primary)' }}
+                    >
+                      <Minus size={16} />
+                    </button>
+                    
+                    <input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateCartItemQuantity(item.id, e.target.value)}
+                      style={{ 
+                        width: '80px', 
+                        textAlign: 'center', 
+                        fontSize: '1.25rem', 
+                        fontWeight: 700,
+                        padding: '8px',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        color: 'var(--primary)',
+                        backgroundColor: 'white'
+                      }}
+                      min="1"
+                    />
+                    
+                    <button
+                      type="button"
+                      onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)}
+                      style={{ padding: '8px', backgroundColor: 'var(--primary-light)', border: '1px solid var(--primary)', borderRadius: 'var(--radius-sm)', color: 'var(--primary)', cursor: 'pointer' }}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => removeCartItem(item.id)}
+                    style={{ padding: '8px', backgroundColor: 'transparent', border: 'none', color: 'var(--error)', cursor: 'pointer' }}
+                    title="ลบรายการนี้"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ padding: '24px', backgroundColor: 'var(--warning-bg)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(217, 119, 6, 0.2)', marginBottom: '20px' }}>
-                <h3 style={{ color: 'var(--warning)', margin: '0 0 8px 0' }}>ไม่พบสินค้าในระบบ</h3>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                  บาร์โค้ด {scanResult.barcode} ยังไม่ได้ถูกผูกกับสินค้าใดๆ คุณต้องการเพิ่มเป็นสินค้าใหม่หรือไม่?
-                </p>
-              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
+            <p style={{ margin: '0 0 16px 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+              ตรวจสอบรายการด้านบนให้ครบถ้วน จากนั้นเลือกดำเนินการ:
+            </p>
+            <div style={{ display: 'flex', gap: '16px' }}>
               <button
-                onClick={handleOpenAddProduct}
+                onClick={() => processStock('IN')}
+                disabled={isSaving}
                 style={{
-                  padding: '12px 24px',
-                  backgroundColor: 'var(--primary)',
+                  flex: 1,
+                  padding: '16px',
+                  backgroundColor: 'var(--success)',
                   color: 'white',
-                  borderRadius: 'var(--radius-md)',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
                   border: 'none',
-                  cursor: 'pointer'
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '1.125rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  opacity: isSaving ? 0.7 : 1,
+                  boxShadow: '0 4px 6px rgba(16, 185, 129, 0.2)'
                 }}
               >
-                <PackagePlus size={18} /> เพิ่มเป็นสินค้าใหม่ด้วยรหัสนี้
+                <ArrowDownToLine size={24} />
+                {isSaving ? 'กำลังบันทึก...' : 'รับเข้าสต็อก (บวกเพิ่ม)'}
+              </button>
+              
+              <button
+                onClick={() => processStock('OUT')}
+                disabled={isSaving}
+                style={{
+                  flex: 1,
+                  padding: '16px',
+                  backgroundColor: 'var(--error)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '1.125rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  opacity: isSaving ? 0.7 : 1,
+                  boxShadow: '0 4px 6px rgba(239, 68, 68, 0.2)'
+                }}
+              >
+                <ArrowUpFromLine size={24} />
+                {isSaving ? 'กำลังบันทึก...' : 'เบิกออก (ตัดสต็อก)'}
               </button>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -416,7 +401,7 @@ export function BarcodePage() {
       <Modal 
         isOpen={isAddProductModalOpen} 
         onClose={() => setIsAddProductModalOpen(false)} 
-        title="เพิ่มสินค้าใหม่จากบาร์โค้ดที่สแกน"
+        title="ไม่พบสินค้า - เพิ่มสินค้าใหม่"
       >
         <ProductForm 
           initialData={{ barcode: newProductBarcode }}
@@ -425,30 +410,5 @@ export function BarcodePage() {
         />
       </Modal>
     </div>
-  );
-}
-
-// Simple Badge component for local use if not imported globally
-function Badge({ children, type = 'default' }) {
-  const colors = {
-    success: { bg: 'var(--success-bg)', text: 'var(--success)' },
-    warning: { bg: 'var(--warning-bg)', text: 'var(--warning)' },
-    default: { bg: 'var(--bg-main)', text: 'var(--text-secondary)' }
-  };
-  const color = colors[type] || colors.default;
-  
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      padding: '4px 8px',
-      borderRadius: '4px',
-      fontSize: '0.75rem',
-      fontWeight: 600,
-      backgroundColor: color.bg,
-      color: color.text
-    }}>
-      {children}
-    </span>
   );
 }
