@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Plus, Minus, X, Layers, Tag, Barcode } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
-import { generateBarcodeValue } from '../../utils/barcode';
+import { generateStructuredBarcode, generateBarcodeValue } from '../../utils/barcode';
 
-export function SizeSelector({ value = {}, onChange }) {
+export function SizeSelector({ value = {}, onChange, category = '', productCode = '000' }) {
   const { savedSizes, addSavedSize, removeSavedSize } = useAppContext();
   const [customSize, setCustomSize] = useState('');
 
@@ -26,9 +26,10 @@ export function SizeSelector({ value = {}, onChange }) {
     onChange({ ...value, [size]: { ...current, barcode: barcodeValue } });
   };
 
-  const handleGenerateBarcode = (size) => {
+  const handleGenerateBarcode = async (size) => {
     const current = value[size] || { stock: 0, barcode: '' };
-    onChange({ ...value, [size]: { ...current, barcode: generateBarcodeValue() } });
+    const newBarcode = await generateStructuredBarcode(category, productCode, size);
+    onChange({ ...value, [size]: { ...current, barcode: newBarcode } });
   };
 
   const removeSizeFromProduct = (size) => {
@@ -37,21 +38,23 @@ export function SizeSelector({ value = {}, onChange }) {
     onChange(newValue);
   };
 
-  const addCustomSize = (e) => {
+  const addCustomSize = async (e) => {
     if (e) e.preventDefault();
     const trimmed = customSize.trim();
     if (trimmed) {
       addSavedSize(trimmed);
       if (value[trimmed] === undefined) {
-        onChange({ ...value, [trimmed]: { stock: 0, barcode: generateBarcodeValue() } });
+        const newBarcode = await generateStructuredBarcode(category, productCode, trimmed);
+        onChange({ ...value, [trimmed]: { stock: 0, barcode: newBarcode } });
       }
       setCustomSize('');
     }
   };
 
-  const handleSelectSavedSize = (size) => {
+  const handleSelectSavedSize = async (size) => {
     if (value[size] === undefined) {
-      onChange({ ...value, [size]: { stock: 0, barcode: generateBarcodeValue() } });
+      const newBarcode = await generateStructuredBarcode(category, productCode, size);
+      onChange({ ...value, [size]: { stock: 0, barcode: newBarcode } });
     }
   };
 

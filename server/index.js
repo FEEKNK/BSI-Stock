@@ -97,6 +97,84 @@ app.patch('/api/products/:id/stock', async (req, res) => {
   }
 });
 
+// Get all category codes
+app.get('/api/category-codes', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT code, name FROM category_codes ORDER BY code');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch category codes' });
+  }
+});
+
+// Add new category code
+app.post('/api/category-codes', async (req, res) => {
+  try {
+    const { code, name } = req.body;
+    const { rows } = await query(
+      'INSERT INTO category_codes(code, name) VALUES($1, $2) ON CONFLICT (code) DO UPDATE SET name=$2 RETURNING *',
+      [code, name]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create category code' });
+  }
+});
+
+// Get all size codes
+app.get('/api/size-codes', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT code, name FROM size_codes ORDER BY code');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch size codes' });
+  }
+});
+
+// Add new size code
+app.post('/api/size-codes', async (req, res) => {
+  try {
+    const { code, name } = req.body;
+    const { rows } = await query(
+      'INSERT INTO size_codes(code, name) VALUES($1, $2) ON CONFLICT (code) DO UPDATE SET name=$2 RETURNING *',
+      [code, name]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create size code' });
+  }
+});
+
+// Get next barcode counter and increment atomically
+app.post('/api/barcode-counter/next', async (req, res) => {
+  try {
+    const { rows } = await query(
+      'UPDATE barcode_counter SET last_value = last_value + 1 WHERE id = 1 RETURNING last_value'
+    );
+    res.json({ value: rows[0].last_value });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get next counter' });
+  }
+});
+
+// Get next product_code for a category (auto-assign)
+app.get('/api/next-product-code/:category', async (req, res) => {
+  try {
+    const { category } = req.params;
+    const { rows } = await query(
+      `SELECT MAX(CAST(product_code AS INTEGER)) as max_code 
+       FROM products WHERE category = $1 AND product_code IS NOT NULL`,
+      [category]
+    );
+    const nextCode = String((rows[0].max_code || 0) + 1).padStart(3, '0');
+    res.json({ product_code: nextCode });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get next product code' });
+  }
+});
+
+
+
 // Create tables on startup
 const initDb = async () => {
   try {

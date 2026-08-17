@@ -17,7 +17,8 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
     price: '',
     barcode: '',
     sizes: {},
-    threshold: settings.globalThreshold
+    threshold: settings.globalThreshold,
+    product_code: null
   });
 
   const [errors, setErrors] = useState({});
@@ -40,6 +41,13 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
+    }
+    // Auto-fetch product_code when category changes (new product only)
+    if (name === 'category' && !initialData?.id && value) {
+      fetch(`/api/next-product-code/${encodeURIComponent(value)}`)
+        .then(r => r.json())
+        .then(d => setFormData(prev => ({ ...prev, product_code: d.product_code })))
+        .catch(() => {});
     }
   };
 
@@ -275,7 +283,12 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
           border: '1px solid var(--border)'
         }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 600 }}>จัดการไซส์และสต็อก</h3>
-          <SizeSelector value={formData.sizes} onChange={handleSizeChange} />
+          <SizeSelector 
+          value={formData.sizes} 
+          onChange={handleSizeChange} 
+          category={formData.category}
+          productCode={formData.product_code || '000'}
+        />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
