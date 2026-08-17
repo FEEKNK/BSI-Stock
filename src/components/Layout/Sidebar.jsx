@@ -8,7 +8,7 @@ const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'แดชบอร์ด' },
   { path: '/products', icon: Package, label: 'จัดการสินค้า' },
   { path: '/categories', icon: Tags, label: 'หมวดหมู่' },
-  { path: '/barcode', icon: Barcode, label: 'บาร์โค้ด' },
+  { path: '/barcode', icon: Barcode, label: 'สแกนบาร์โค้ด' },
   { path: '/settings', icon: Settings, label: 'การตั้งค่า' },
 ];
 

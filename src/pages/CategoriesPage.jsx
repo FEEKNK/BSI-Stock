@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Plus, X, Tags, Search, Package } from 'lucide-react';
 import { EmptyState } from '../components/common/EmptyState';
+import { ReferenceTable } from '../components/common/ReferenceTable';
 
 export function CategoriesPage() {
   const { products, savedCategories, addSavedCategory, removeSavedCategory } = useAppContext();
@@ -218,6 +219,12 @@ export function CategoriesPage() {
             )}
           </div>
         </div>
+      </div>
+      
+      {/* Reference Table Section */}
+      <div style={{ marginTop: '24px' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '16px', color: 'var(--text-primary)' }}>อ้างอิงรหัสบาร์โค้ด</h2>
+        <ReferenceTable />
       </div>
     </div>
   );

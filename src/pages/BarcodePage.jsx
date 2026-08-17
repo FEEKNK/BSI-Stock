@@ -1,18 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { BarcodeScanner } from '../components/Barcode/BarcodeScanner';
-import { BarcodeGenerator } from '../components/Barcode/BarcodeGenerator';
-import { useBarcode } from '../hooks/useBarcode';
 import { useProducts } from '../hooks/useProducts';
-import { useAppContext } from '../context/AppContext';
 import { Modal } from '../components/common/Modal';
 import { ProductForm } from '../components/Products/ProductForm';
-import { Plus, Minus, Check, PackagePlus, Box, Info } from 'lucide-react';
+import { Plus, Minus, Check, PackagePlus, Box } from 'lucide-react';
 import { formatCurrency } from '../utils/formatter';
 
 export function BarcodePage() {
-  const [activeTab, setActiveTab] = useState('scan');
   const [scanResult, setScanResult] = useState(null);
-  const [generatorValue, setGeneratorValue] = useState('');
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [newProductBarcode, setNewProductBarcode] = useState('');
@@ -21,18 +16,7 @@ export function BarcodePage() {
   const [editingSizes, setEditingSizes] = useState({});
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
 
-  const { generateNewBarcode } = useBarcode();
   const { getProductByBarcode, updateProduct, addProduct } = useProducts();
-  const { products } = useAppContext();
-
-  // Reference tab data
-  const [categoryCodes, setCategoryCodes] = useState([]);
-  const [sizeCodes, setSizeCodes] = useState([]);
-
-  useEffect(() => {
-    fetch('/api/category-codes').then(r => r.json()).then(setCategoryCodes).catch(() => {});
-    fetch('/api/size-codes').then(r => r.json()).then(setSizeCodes).catch(() => {});
-  }, []);
 
   const handleScanSuccess = (decodedText) => {
     const match = getProductByBarcode(decodedText);
@@ -101,21 +85,9 @@ export function BarcodePage() {
     setIsAddProductModalOpen(false);
   };
 
-  const tabStyle = (isActive) => ({
-    flex: 1,
-    padding: '14px',
-    textAlign: 'center',
-    fontWeight: 600,
-    color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-    borderBottom: `2px solid ${isActive ? 'var(--primary)' : 'transparent'}`,
-    backgroundColor: isActive ? 'var(--bg-surface)' : 'var(--bg-main)',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
-  });
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>จัดการบาร์โค้ด</h1>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>สแกนบาร์โค้ด</h1>
 
       <div style={{
         backgroundColor: 'var(--bg-surface)',
@@ -124,129 +96,13 @@ export function BarcodePage() {
         border: '1px solid var(--border)',
         boxShadow: 'var(--shadow-sm)'
       }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
-          <div style={tabStyle(activeTab === 'scan')} onClick={() => setActiveTab('scan')}>สแกนบาร์โค้ด</div>
-          <div style={tabStyle(activeTab === 'generate')} onClick={() => setActiveTab('generate')}>สร้างบาร์โค้ด</div>
-          <div style={tabStyle(activeTab === 'reference')} onClick={() => setActiveTab('reference')}>อ้างอิงรหัส</div>
-        </div>
-
         <div style={{ padding: '32px' }}>
-          {activeTab === 'scan' ? (
-            <div>
-              <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-                อนุญาตให้เบราว์เซอร์เข้าถึงกล้องเพื่อสแกนบาร์โค้ด (สามารถเพิ่มสต็อกได้ทันทีที่สแกนเจอ)
-              </p>
-              <BarcodeScanner elementId="page-barcode-scanner" onScan={handleScanSuccess} onError={handleScanError} />
-            </div>
-          ) : activeTab === 'generate' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '400px', margin: '0 auto' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontWeight: 500 }}>ป้อนรหัสบาร์โค้ดที่ต้องการทดลองสร้าง</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    value={generatorValue}
-                    onChange={(e) => setGeneratorValue(e.target.value)}
-                    style={{
-                      flex: 1, padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)', border: '1px solid var(--border)',
-                      backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)'
-                    }}
-                    placeholder="ป้อนรหัส 12 หลัก..."
-                  />
-                </div>
-              </div>
-              
-              {generatorValue && (
-                <div style={{ marginTop: '16px' }}>
-                  <BarcodeGenerator value={generatorValue} />
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Reference Tab */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* Structure explanation */}
-              <div style={{ padding: '20px', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', border: '1px solid var(--primary)' }}>
-                <h3 style={{ margin: '0 0 12px 0', color: 'var(--primary)', fontSize: '1rem' }}>
-                  <Info size={16} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
-                  โครงสร้างบาร์โค้ด 12 หลัก
-                </h3>
-                <div style={{ fontFamily: 'monospace', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px', letterSpacing: '2px' }}>
-                  [CC] [PPP] [SS] [NNNNN]
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 16px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>CC (หลัก 1-2)</span><span>รหัสหมวดหมู่</span>
-                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>PPP (หลัก 3-5)</span><span>รหัสสินค้า (ลำดับในหมวดหมู่)</span>
-                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>SS (หลัก 6-7)</span><span>รหัสไซส์</span>
-                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>NNNNN (หลัก 8-12)</span><span>เลขรันนิ่ง (ป้องกันซ้ำ)</span>
-                </div>
-              </div>
-
-              {/* Category codes table */}
-              <div>
-                <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontWeight: 600 }}>📁 ตารางรหัสหมวดหมู่ (CC)</h4>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '2px solid var(--primary)' }}>
-                      <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>รหัส</th>
-                      <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>หมวดหมู่</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {categoryCodes.map((c, i) => (
-                      <tr key={c.code} style={{ backgroundColor: i % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '10px 16px', fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>{c.code}</td>
-                        <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>{c.name}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Size codes table */}
-              <div>
-                <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontWeight: 600 }}>📏 ตารางรหัสไซส์ (SS)</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px' }}>
-                  {sizeCodes.map(s => (
-                    <div key={s.code} style={{
-                      padding: '10px 14px', backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                    }}>
-                      <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem', color: 'var(--primary)' }}>{s.code}</span>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{s.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Product codes table */}
-              <div>
-                <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontWeight: 600 }}>🏷️ ตารางรหัสสินค้า (PPP)</h4>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '2px solid var(--primary)' }}>
-                      <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>รหัส (PPP)</th>
-                      <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>ชื่อสินค้า</th>
-                      <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>หมวดหมู่</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.filter(p => p.product_code).sort((a, b) => {
-                      if (a.category !== b.category) return a.category.localeCompare(b.category);
-                      return (a.product_code || '').localeCompare(b.product_code || '');
-                    }).map((p, i) => (
-                      <tr key={p.id} style={{ backgroundColor: i % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '10px 16px', fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>{p.product_code}</td>
-                        <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>{p.name}</td>
-                        <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{p.category}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          <div>
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+              อนุญาตให้เบราว์เซอร์เข้าถึงกล้องเพื่อสแกนบาร์โค้ด (สามารถเพิ่มสต็อกได้ทันทีที่สแกนเจอ)
+            </p>
+            <BarcodeScanner elementId="page-barcode-scanner" onScan={handleScanSuccess} onError={handleScanError} />
+          </div>
         </div>
       </div>
 
