@@ -1,10 +1,10 @@
 import React from 'react';
-import { Edit2, Trash2, Box } from 'lucide-react';
+import { Edit2, Trash2, Box, Printer } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatter';
 import { Badge } from '../common/Badge';
 import { useAppContext } from '../../context/AppContext';
 
-export function ProductList({ products, onEdit, onDelete }) {
+export function ProductList({ products, onEdit, onDelete, onPrint }) {
   const { settings } = useAppContext();
 
   if (!products || products.length === 0) {
@@ -65,12 +65,21 @@ export function ProductList({ products, onEdit, onDelete }) {
                 </td>
                 <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>{product.category}</td>
                 <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>{product.price ? formatCurrency(product.price) : '-'}</td>
-                <td style={{ padding: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>{product.totalStock || 0}</td>
+                <td style={{ padding: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>{
+                  product.totalStock || product.total_stock || (product.sizes ? Object.values(product.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0)
+                }</td>
                 <td style={{ padding: '16px' }}>
                   <Badge type={status.type}>{status.label}</Badge>
                 </td>
                 <td style={{ padding: '16px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    <button
+                      onClick={() => onPrint && onPrint(product)}
+                      style={{ padding: '6px', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-sm)' }}
+                      title="ปรินต์บาร์โค้ด"
+                    >
+                      <Printer size={16} />
+                    </button>
                     <button
                       onClick={() => onEdit(product)}
                       style={{ padding: '6px', color: 'var(--primary)', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-sm)' }}

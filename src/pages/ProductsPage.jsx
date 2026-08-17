@@ -6,6 +6,7 @@ import { ProductForm } from '../components/Products/ProductForm';
 import { Modal } from '../components/common/Modal';
 import { EmptyState } from '../components/common/EmptyState';
 import { BarcodeScanner } from '../components/Barcode/BarcodeScanner';
+import { BarcodeGenerator } from '../components/Barcode/BarcodeGenerator';
 
 export function ProductsPage() {
   const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, filterProducts } = useProducts();
@@ -13,6 +14,8 @@ export function ProductsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [productToPrint, setProductToPrint] = useState(null);
   
   const [filters, setFilters] = useState({
     search: '',
@@ -55,8 +58,16 @@ export function ProductsPage() {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบสินค้านี้?')) {
-      deleteProduct(id);
+    const product = products.find(p => p.id === id);
+    if (product) {
+      setProductToDelete(product);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (productToDelete) {
+      deleteProduct(productToDelete.id);
+      setProductToDelete(null);
     }
   };
 
@@ -164,6 +175,7 @@ export function ProductsPage() {
           products={filteredProducts}
           onEdit={handleOpenModal}
           onDelete={handleDelete}
+          onPrint={(p) => setProductToPrint(p)}
         />
       )}
 
@@ -194,6 +206,116 @@ export function ProductsPage() {
             elementId="products-page-scanner" 
             onScan={handleScanBarcode} 
           />
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!productToDelete}
+        onClose={() => setProductToDelete(null)}
+        title="ยืนยันการลบสินค้า"
+      >
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <p style={{ margin: '0 0 24px 0', fontSize: '1rem', color: 'var(--text-primary)' }}>
+            คุณแน่ใจหรือไม่ที่จะลบสินค้า <strong>{productToDelete?.name}</strong>?
+            <br/>
+            <span style={{ fontSize: '0.875rem', color: 'var(--danger)', display: 'block', marginTop: '8px' }}>
+              การกระทำนี้ไม่สามารถกู้คืนได้
+            </span>
+          </p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <button
+              onClick={() => setProductToDelete(null)}
+              style={{
+                padding: '10px 24px',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 600,
+                color: 'var(--text-secondary)'
+              }}
+            >
+              ยกเลิก
+            </button>
+            <button
+              onClick={confirmDelete}
+              style={{
+                padding: '10px 24px',
+                backgroundColor: 'var(--danger)',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 600,
+                color: '#fff'
+              }}
+            >
+              ลบทิ้ง
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Print Barcodes Modal */}
+      <Modal
+        isOpen={!!productToPrint}
+        onClose={() => setProductToPrint(null)}
+        title={`ปรินต์บาร์โค้ด - ${productToPrint?.name}`}
+      >
+        <div style={{ textAlign: 'center' }}>
+          <p className="no-print" style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+            ระบบจะจัดเรียงรูปบาร์โค้ดของทุกไซส์สำหรับสินค้านี้ คุณสามารถกดสั่งปรินต์ลงกระดาษ A4 ได้ทันที
+          </p>
+
+          <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '16px', backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-md)' }} className="no-print">
+            {productToPrint && productToPrint.sizes && Object.keys(productToPrint.sizes).length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {Object.entries(productToPrint.sizes).map(([size, data]) => (
+                  <div key={size} style={{ padding: '16px', backgroundColor: 'white', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+                    <h4 style={{ margin: '0 0 12px 0' }}>ไซส์: {size}</h4>
+                    <BarcodeGenerator value={typeof data === 'object' ? data.barcode : ''} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>ไม่มีบาร์โค้ดของไซส์ใดๆ สำหรับสินค้านี้</p>
+            )}
+          </div>
+
+          <div className="no-print" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '24px' }}>
+            <button
+              onClick={() => setProductToPrint(null)}
+              style={{ padding: '10px 24px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', fontWeight: 600, color: 'var(--text-secondary)' }}
+            >
+              ปิดหน้าต่าง
+            </button>
+            <button
+              onClick={() => window.print()}
+              disabled={!productToPrint || !productToPrint.sizes || Object.keys(productToPrint.sizes).length === 0}
+              style={{ padding: '10px 24px', backgroundColor: 'var(--primary)', border: 'none', borderRadius: 'var(--radius-md)', fontWeight: 600, color: '#fff', opacity: (!productToPrint || !productToPrint.sizes || Object.keys(productToPrint.sizes).length === 0) ? 0.5 : 1 }}
+            >
+              สั่งปรินต์
+            </button>
+          </div>
+        </div>
+
+        {/* Hidden Print Area */}
+        <div id="print-area" style={{ display: 'none' }}>
+          {productToPrint && (
+            <div>
+              <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>บาร์โค้ดสินค้า: {productToPrint.name}</h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', justifyContent: 'center' }}>
+                {Object.entries(productToPrint.sizes || {}).map(([size, data]) => {
+                  const barcode = typeof data === 'object' ? data.barcode : '';
+                  if (!barcode) return null;
+                  return (
+                    <div key={size} style={{ textAlign: 'center', breakInside: 'avoid', border: '1px dashed #ccc', padding: '15px' }}>
+                      <h4 style={{ margin: '0 0 10px 0' }}>{productToPrint.name} - ไซส์ {size}</h4>
+                      <BarcodeGenerator value={barcode} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

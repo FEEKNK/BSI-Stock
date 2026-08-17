@@ -56,6 +56,7 @@ export function BarcodeGenerator({ value }) {
         <svg ref={barcodeRef}></svg>
       </div>
       <button
+        className="no-print"
         onClick={downloadBarcode}
         style={{
           display: 'flex', alignItems: 'center', gap: '8px',

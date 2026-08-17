@@ -1,12 +1,38 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Package, AlertTriangle, AlertOctagon, TrendingUp } from 'lucide-react';
 import { useDashboard } from '../hooks/useDashboard';
+import { useAppContext } from '../context/AppContext';
 import { StatsCard } from '../components/Dashboard/StatsCard';
 import { StockChart } from '../components/Dashboard/StockChart';
 import { Badge } from '../components/common/Badge';
 
 export function DashboardPage() {
   const { stats, lowStockItems } = useDashboard();
+  const { products } = useAppContext();
+
+  // Build the stock matrix (like the paper sheet)
+  const stockMatrix = useMemo(() => {
+    // Collect all unique sizes across all products
+    const sizeOrder = ['free size', 'ฟรีไซส์', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '32', '34', '36', '38', '40', '42', '44', '46', '48', '50'];
+    const allSizesSet = new Set();
+    const productsWithSizes = products.filter(p => p.sizes && Object.keys(p.sizes).length > 0);
+    
+    productsWithSizes.forEach(p => {
+      Object.keys(p.sizes).forEach(s => allSizesSet.add(s));
+    });
+
+    // Sort sizes by predefined order
+    const allSizes = [...allSizesSet].sort((a, b) => {
+      const ia = sizeOrder.indexOf(a);
+      const ib = sizeOrder.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+
+    return { productsWithSizes, allSizes };
+  }, [products]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -85,6 +111,84 @@ export function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Stock Summary Table - like the paper sheet */}
+      <div style={{
+        backgroundColor: 'var(--bg-surface)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '24px',
+        border: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-sm)'
+      }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+          📊 ตารางสต็อกแยกตามไซส์
+        </h3>
+
+        {stockMatrix.productsWithSizes.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+            ยังไม่มีข้อมูลสต็อก
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg-main)' }}>
+                  <th style={{
+                    padding: '12px 16px', textAlign: 'left', fontWeight: 700,
+                    color: 'var(--text-primary)', borderBottom: '2px solid var(--primary)',
+                    position: 'sticky', left: 0, backgroundColor: 'var(--bg-main)', zIndex: 1, minWidth: '80px'
+                  }}>
+                    ไซส์
+                  </th>
+                  {stockMatrix.productsWithSizes.map(p => (
+                    <th key={p.id} style={{
+                      padding: '12px 16px', fontWeight: 600,
+                      color: 'var(--primary)', borderBottom: '2px solid var(--primary)', minWidth: '90px',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {p.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {stockMatrix.allSizes.map((size, idx) => (
+                  <tr key={size} style={{ backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)' }}>
+                    <td style={{
+                      padding: '10px 16px', fontWeight: 600, textAlign: 'left',
+                      color: 'var(--text-primary)', borderRight: '1px solid var(--border)',
+                      position: 'sticky', left: 0,
+                      backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', zIndex: 1
+                    }}>
+                      {size}
+                    </td>
+                    {stockMatrix.productsWithSizes.map(p => {
+                      const sizeData = p.sizes?.[size];
+                      const stock = sizeData
+                        ? (typeof sizeData === 'object' ? sizeData.stock : Number(sizeData))
+                        : null;
+                      
+                      return (
+                        <td key={p.id} style={{
+                          padding: '10px 16px',
+                          fontWeight: stock !== null ? 600 : 400,
+                          color: stock === null ? 'var(--text-tertiary)' 
+                            : stock === 0 ? 'var(--danger)' 
+                            : stock <= 5 ? 'var(--warning)' 
+                            : 'var(--text-primary)',
+                          borderRight: '1px solid var(--border-light)'
+                        }}>
+                          {stock !== null ? stock : '-'}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

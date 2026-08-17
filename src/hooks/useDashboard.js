@@ -12,7 +12,8 @@ export function useDashboard() {
 
     products.forEach(p => {
       const threshold = p.threshold || settings.globalThreshold;
-      totalItems += p.totalStock || 0;
+      const stock = p.totalStock || p.total_stock || (p.sizes ? Object.values(p.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0);
+      totalItems += stock;
       
       if (p.totalStock === 0) {
         outOfStockCount++;

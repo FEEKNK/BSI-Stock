@@ -105,3 +105,10 @@ input, select, textarea {
 .bg-warning { background-color: var(--warning-bg); }
 .bg-success { background-color: var(--success-bg); }
 .bg-primary { background-color: var(--primary-light); }
+
+@media print {
+  body * { visibility: hidden; }
+  #print-area { display: block !important; visibility: visible !important; position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+  #print-area * { visibility: visible !important; }
+  .no-print { display: none !important; }
+}
