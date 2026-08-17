@@ -12,7 +12,7 @@ export function AppProvider({ children }) {
   const [savedCategories, setSavedCategories] = useLocalStorage(STORAGE_KEYS.SAVED_CATEGORIES, []);
 
   const [settings, setSettings] = useLocalStorage(STORAGE_KEYS.SETTINGS, {
-    globalThreshold: 5,
+    globalThreshold: 30,
     notificationsEnabled: true
   });
 
@@ -33,6 +33,14 @@ export function AppProvider({ children }) {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  useEffect(() => {
+    // Migrate existing local storage to the new default of 30
+    if (!localStorage.getItem('threshold_migrated_to_30')) {
+      setSettings(prev => ({ ...prev, globalThreshold: 30 }));
+      localStorage.setItem('threshold_migrated_to_30', 'true');
+    }
+  }, [setSettings]);
 
   // Size management
   const addSavedSize = useCallback((size) => {
@@ -119,8 +127,18 @@ export function AppProvider({ children }) {
   const updateStock = async (productId, sizeKey, quantity) => {
     const p = products.find(prod => prod.id === productId);
     if (!p) return;
-    const newSizes = { ...p.sizes, [sizeKey]: quantity };
-    const totalStock = Object.values(newSizes).reduce((sum, qty) => sum + (Number(qty) || 0), 0);
+    const oldSizeData = p.sizes[sizeKey];
+    const isOldFormat = typeof oldSizeData === 'number' || typeof oldSizeData === 'string';
+    const newSizeData = isOldFormat 
+      ? { stock: Number(quantity), barcode: '' }
+      : { ...(oldSizeData || { barcode: '' }), stock: Number(quantity) };
+
+    const newSizes = { ...p.sizes, [sizeKey]: newSizeData };
+    
+    const totalStock = Object.values(newSizes).reduce((sum, sizeData) => {
+      const stock = typeof sizeData === 'number' || typeof sizeData === 'string' ? sizeData : sizeData?.stock;
+      return sum + (Number(stock) || 0);
+    }, 0);
 
     try {
       const res = await fetch(`/api/products/${productId}/stock`, {

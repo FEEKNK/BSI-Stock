@@ -12,13 +12,14 @@ export function BarcodePage() {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   
   const { generateNewBarcode } = useBarcode();
-  const { getProductByBarcode } = useProducts();
+  const { getProductByBarcode, updateStock } = useProducts();
 
   const handleScanSuccess = (decodedText) => {
-    const product = getProductByBarcode(decodedText);
+    const match = getProductByBarcode(decodedText);
     setScanResult({
       barcode: decodedText,
-      product: product
+      product: match?.product || null,
+      matchedSize: match?.matchedSize || null
     });
     setIsResultModalOpen(true);
   };
@@ -115,7 +116,55 @@ export function BarcodePage() {
               <div style={{ padding: '24px', backgroundColor: 'var(--success-bg)', borderRadius: 'var(--radius-md)', marginTop: '16px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
                 <h3 style={{ color: 'var(--success)', margin: '0 0 8px 0' }}>พบสินค้าในระบบ</h3>
                 <p style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>{scanResult.product.name}</p>
-                <p style={{ margin: '8px 0 0 0', color: 'var(--text-secondary)' }}>สต็อกปัจจุบัน: {scanResult.product.totalStock} ชิ้น</p>
+                
+                {scanResult.matchedSize ? (
+                  <div style={{ marginTop: '16px', padding: '16px', backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                    <p style={{ margin: '0 0 8px 0', fontWeight: 600, fontSize: '1.1rem' }}>ไซส์: {scanResult.matchedSize}</p>
+                    <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)' }}>
+                      สต็อกปัจจุบัน: {scanResult.product.sizes[scanResult.matchedSize]?.stock || 0} ชิ้น
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      <button 
+                        onClick={() => {
+                          const currentStock = scanResult.product.sizes[scanResult.matchedSize]?.stock || 0;
+                          if (currentStock > 0) {
+                            updateStock(scanResult.product.id, scanResult.matchedSize, currentStock - 1);
+                            setScanResult(prev => ({
+                              ...prev,
+                              product: {
+                                ...prev.product,
+                                sizes: {
+                                  ...prev.product.sizes,
+                                  [scanResult.matchedSize]: { ...prev.product.sizes[scanResult.matchedSize], stock: currentStock - 1 }
+                                }
+                              }
+                            }));
+                          }
+                        }}
+                        style={{ padding: '10px 20px', backgroundColor: 'var(--danger)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', fontWeight: 600, cursor: 'pointer' }}
+                      >-1 ขายออก</button>
+                      <button 
+                        onClick={() => {
+                          const currentStock = scanResult.product.sizes[scanResult.matchedSize]?.stock || 0;
+                          updateStock(scanResult.product.id, scanResult.matchedSize, currentStock + 1);
+                          setScanResult(prev => ({
+                            ...prev,
+                            product: {
+                              ...prev.product,
+                              sizes: {
+                                ...prev.product.sizes,
+                                [scanResult.matchedSize]: { ...prev.product.sizes[scanResult.matchedSize], stock: currentStock + 1 }
+                              }
+                            }
+                          }));
+                        }}
+                        style={{ padding: '10px 20px', backgroundColor: 'var(--success)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', fontWeight: 600, cursor: 'pointer' }}
+                      >+1 รับเข้า</button>
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ margin: '8px 0 0 0', color: 'var(--text-secondary)' }}>สต็อกรวม: {scanResult.product.totalStock} ชิ้น (เป็นบาร์โค้ดสินค้ารวม)</p>
+                )}
               </div>
             ) : (
               <div style={{ padding: '24px', backgroundColor: 'var(--warning-bg)', borderRadius: 'var(--radius-md)', marginTop: '16px', border: '1px solid rgba(217, 119, 6, 0.2)' }}>

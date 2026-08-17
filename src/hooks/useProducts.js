@@ -4,7 +4,19 @@ export function useProducts() {
   const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, updateStock, refreshProducts } = useAppContext();
 
   const getProductByBarcode = (barcode) => {
-    return products.find(p => p.barcode === barcode);
+    for (const p of products) {
+      if (p.barcode === barcode) {
+        return { product: p, matchedSize: null };
+      }
+      if (p.sizes) {
+        for (const [sizeKey, sizeData] of Object.entries(p.sizes)) {
+          if (sizeData && typeof sizeData === 'object' && sizeData.barcode === barcode) {
+            return { product: p, matchedSize: sizeKey };
+          }
+        }
+      }
+    }
+    return null;
   };
 
   const filterProducts = (filters) => {

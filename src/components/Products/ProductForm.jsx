@@ -68,7 +68,10 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
       addSavedCategory(formData.category);
     }
 
-    const totalStock = Object.values(formData.sizes).reduce((sum, qty) => sum + (Number(qty) || 0), 0);
+    const totalStock = Object.values(formData.sizes).reduce((sum, sizeData) => {
+      const stock = typeof sizeData === 'number' || typeof sizeData === 'string' ? sizeData : sizeData?.stock;
+      return sum + (Number(stock) || 0);
+    }, 0);
     
     onSubmit({
       ...formData,

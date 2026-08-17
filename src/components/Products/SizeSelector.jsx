@@ -1,17 +1,29 @@
 import React, { useState } from 'react';
-import { Plus, X, Layers, Tag } from 'lucide-react';
+import { Plus, X, Layers, Tag, Barcode } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { generateBarcodeValue } from '../../utils/barcode';
 
 export function SizeSelector({ value = {}, onChange }) {
   const { savedSizes, addSavedSize, removeSavedSize } = useAppContext();
   const [customSize, setCustomSize] = useState('');
 
   const handleQuantityChange = (size, qty) => {
-    const newValue = { ...value, [size]: Number(qty) };
+    const current = value[size] || { stock: 0, barcode: '' };
+    const newValue = { ...value, [size]: { ...current, stock: Number(qty) } };
     if (qty === '' || isNaN(qty) || Number(qty) < 0) {
-      newValue[size] = 0;
+      newValue[size].stock = 0;
     }
     onChange(newValue);
+  };
+
+  const handleBarcodeChange = (size, barcodeValue) => {
+    const current = value[size] || { stock: 0, barcode: '' };
+    onChange({ ...value, [size]: { ...current, barcode: barcodeValue } });
+  };
+
+  const handleGenerateBarcode = (size) => {
+    const current = value[size] || { stock: 0, barcode: '' };
+    onChange({ ...value, [size]: { ...current, barcode: generateBarcodeValue() } });
   };
 
   const removeSizeFromProduct = (size) => {
@@ -24,11 +36,9 @@ export function SizeSelector({ value = {}, onChange }) {
     if (e) e.preventDefault();
     const trimmed = customSize.trim();
     if (trimmed) {
-      // Add to saved sizes list
       addSavedSize(trimmed);
-      // Add to current product if not yet present
       if (value[trimmed] === undefined) {
-        onChange({ ...value, [trimmed]: 0 });
+        onChange({ ...value, [trimmed]: { stock: 0, barcode: generateBarcodeValue() } });
       }
       setCustomSize('');
     }
@@ -36,7 +46,7 @@ export function SizeSelector({ value = {}, onChange }) {
 
   const handleSelectSavedSize = (size) => {
     if (value[size] === undefined) {
-      onChange({ ...value, [size]: 0 });
+      onChange({ ...value, [size]: { stock: 0, barcode: generateBarcodeValue() } });
     }
   };
 
@@ -45,7 +55,6 @@ export function SizeSelector({ value = {}, onChange }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       
-      {/* Saved Sizes Quick Selection */}
       {savedSizes.length > 0 && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
@@ -107,7 +116,6 @@ export function SizeSelector({ value = {}, onChange }) {
         </div>
       )}
 
-      {/* Add New Size Input */}
       <div style={{ display: 'flex', gap: '8px' }}>
         <input 
           type="text" 
@@ -148,7 +156,6 @@ export function SizeSelector({ value = {}, onChange }) {
         </button>
       </div>
 
-      {/* Configured Sizes Table */}
       {sizeKeys.length === 0 ? (
         <div style={{
           padding: '24px',
@@ -167,62 +174,105 @@ export function SizeSelector({ value = {}, onChange }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <h4 style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-            จำนวนสต็อกตามไซส์ของสินค้านี้ ({sizeKeys.length} ไซส์)
+            จำนวนสต็อกและบาร์โค้ดตามไซส์ ({sizeKeys.length} ไซส์)
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {Object.entries(value).map(([size, qty]) => (
-              <div 
-                key={size} 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'space-between',
-                  padding: '10px 16px',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)'
-                }}
-              >
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)', minWidth: '100px' }}>
-                  {size}
+            {Object.entries(value).map(([size, sizeData]) => {
+              // Backward compatibility for old format where sizeData is just a number
+              const isOldFormat = typeof sizeData === 'number' || typeof sizeData === 'string';
+              const stock = isOldFormat ? Number(sizeData) : (sizeData?.stock || 0);
+              const barcode = isOldFormat ? '' : (sizeData?.barcode || '');
+
+              return (
+                <div 
+                  key={size} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    padding: '10px 16px',
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    gap: '12px',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', minWidth: '80px' }}>
+                    {size}
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
+                    <Barcode size={16} style={{ color: 'var(--text-tertiary)' }} />
+                    <input 
+                      type="text"
+                      value={barcode}
+                      onChange={(e) => handleBarcodeChange(size, e.target.value)}
+                      placeholder="บาร์โค้ด"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border)',
+                        backgroundColor: 'var(--bg-main)',
+                        color: 'var(--text-primary)',
+                        flex: 1,
+                        fontSize: '0.875rem'
+                      }}
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => handleGenerateBarcode(size)}
+                      style={{
+                        padding: '6px 10px',
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.75rem',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      สุ่มบาร์โค้ด
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>จำนวน:</span>
+                    <input 
+                      type="number"
+                      min="0"
+                      value={stock}
+                      onChange={(e) => handleQuantityChange(size, e.target.value)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border)',
+                        backgroundColor: 'var(--bg-main)',
+                        color: 'var(--text-primary)',
+                        width: '80px',
+                        textAlign: 'center',
+                        fontWeight: 600
+                      }}
+                    />
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>ชิ้น</span>
+                    <button 
+                      type="button" 
+                      onClick={() => removeSizeFromProduct(size)} 
+                      style={{ 
+                        color: 'var(--danger)', 
+                        padding: '6px',
+                        borderRadius: 'var(--radius-sm)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="ลบไซส์นี้ออกจากสินค้านี้"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>จำนวน:</span>
-                  <input 
-                    type="number"
-                    min="0"
-                    value={qty}
-                    onChange={(e) => handleQuantityChange(size, e.target.value)}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border)',
-                      backgroundColor: 'var(--bg-main)',
-                      color: 'var(--text-primary)',
-                      width: '100px',
-                      textAlign: 'center',
-                      fontWeight: 600
-                    }}
-                  />
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>ชิ้น</span>
-                  <button 
-                    type="button" 
-                    onClick={() => removeSizeFromProduct(size)} 
-                    style={{ 
-                      color: 'var(--danger)', 
-                      padding: '6px',
-                      borderRadius: 'var(--radius-sm)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    title="ลบไซส์นี้ออกจากสินค้านี้"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

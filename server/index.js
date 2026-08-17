@@ -20,7 +20,7 @@ app.get('/api/products', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to fetch products' });
+    res.status(500).json({ error: 'Failed to fetch products', details: err.message, stack: err.stack });
   }
 });
 
@@ -109,7 +109,13 @@ const initDb = async () => {
 };
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   await initDb();
   console.log(`Server running on port ${PORT}`);
 });
+
+server.on('error', (e) => console.error('Server error:', e));
+server.on('close', () => console.log('Server closed!'));
+
+// Keep process alive just in case
+setInterval(() => {}, 1000 * 60 * 60);
