@@ -24,6 +24,26 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
+app.get('/api/category-codes', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM category_codes ORDER BY code ASC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/size-codes', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM size_codes ORDER BY code ASC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create product
 app.post('/api/products', async (req, res) => {
   try {

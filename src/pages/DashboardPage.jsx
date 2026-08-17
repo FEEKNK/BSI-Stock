@@ -15,10 +15,24 @@ export function DashboardPage() {
     // Collect all unique sizes across all products
     const sizeOrder = ['free size', 'ฟรีไซส์', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '32', '34', '36', '38', '40', '42', '44', '46', '48', '50'];
     const allSizesSet = new Set();
-    const productsWithSizes = products.filter(p => p.sizes && Object.keys(p.sizes).length > 0);
     
-    productsWithSizes.forEach(p => {
-      Object.keys(p.sizes).forEach(s => allSizesSet.add(s));
+    // We want ALL products, not just those with sizes, to match the paper columns perfectly.
+    // Let's also order them exactly like the paper: Sabina, Anne, Avie, Wacoal, เกาะอก, ผ้าคลุมหน้าอก
+    const paperOrder = ['Sabina', 'Anne', 'Avie', 'Wacoal', 'เกาะอก', 'ผ้าคลุมหน้าอก'];
+    
+    const sortedProducts = [...products].sort((a, b) => {
+      const idxA = paperOrder.indexOf(a.name);
+      const idxB = paperOrder.indexOf(b.name);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return (a.product_code || '').localeCompare(b.product_code || '');
+    });
+    
+    sortedProducts.forEach(p => {
+      if (p.sizes) {
+        Object.keys(p.sizes).forEach(s => allSizesSet.add(s));
+      }
     });
 
     // Sort sizes by predefined order
@@ -31,7 +45,7 @@ export function DashboardPage() {
       return ia - ib;
     });
 
-    return { productsWithSizes, allSizes };
+    return { productsWithSizes: sortedProducts, allSizes };
   }, [products]);
 
   return (
@@ -179,7 +193,7 @@ export function DashboardPage() {
                             : 'var(--text-primary)',
                           borderRight: '1px solid var(--border-light)'
                         }}>
-                          {stock !== null ? stock : '-'}
+                          {stock !== null ? stock : ''}
                         </td>
                       );
                     })}
