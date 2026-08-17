@@ -59,7 +59,9 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
                     </div>
                     <div>
                       <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{product.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{product.barcode || '-'}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                        {product.product_code ? `รหัส: ${product.product_code}` : (product.barcode || '')}
+                      </div>
                     </div>
                   </div>
                 </td>

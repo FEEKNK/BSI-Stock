@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
-import { Plus, Minus, X, Layers, Tag, Barcode } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Minus, X, Layers, Tag, Barcode, Check } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { generateStructuredBarcode, generateBarcodeValue } from '../../utils/barcode';
 
 export function SizeSelector({ value = {}, onChange, category = '', productCode = '000' }) {
-  const { savedSizes, addSavedSize, removeSavedSize } = useAppContext();
+  const { addSavedSize } = useAppContext();
   const [customSize, setCustomSize] = useState('');
+  const [dbSizes, setDbSizes] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/size-codes')
+      .then(res => res.json())
+      .then(data => setDbSizes(data))
+      .catch(err => console.error(err));
+  }, []);
 
   const handleQuantityChange = (size, qty) => {
     const current = value[size] || { stock: 0, barcode: '' };
@@ -55,6 +63,8 @@ export function SizeSelector({ value = {}, onChange, category = '', productCode 
     if (value[size] === undefined) {
       const newBarcode = await generateStructuredBarcode(category, productCode, size);
       onChange({ ...value, [size]: { stock: 0, barcode: newBarcode } });
+    } else {
+      removeSizeFromProduct(size);
     }
   };
 
@@ -63,61 +73,42 @@ export function SizeSelector({ value = {}, onChange, category = '', productCode 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       
-      {savedSizes.length > 0 && (
+      {dbSizes.length > 0 && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
             <Tag size={14} style={{ color: 'var(--text-secondary)' }} />
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-              ไซส์ที่บันทึกไว้ (คลิกเพื่อเลือกใช้):
+              เลือกไซส์ (คลิกเพื่อเพิ่ม/ลบ):
             </span>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {savedSizes.map(size => {
+            {dbSizes.map(item => {
+              const size = item.name;
               const isSelected = value[size] !== undefined;
               return (
-                <div
+                <button
                   key={size}
+                  type="button"
+                  onClick={() => handleSelectSavedSize(size)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    gap: '4px',
                     backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--bg-surface)',
                     border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
-                    borderRadius: 'var(--radius-md)',
-                    overflow: 'hidden',
-                    transition: 'all 0.2s'
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 16px',
+                    color: isSelected ? 'var(--primary)' : 'var(--text-primary)',
+                    fontWeight: isSelected ? 600 : 500,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative'
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => handleSelectSavedSize(size)}
-                    style={{
-                      padding: '6px 10px',
-                      color: isSelected ? 'var(--primary)' : 'var(--text-primary)',
-                      fontWeight: isSelected ? 600 : 500,
-                      fontSize: '0.875rem'
-                    }}
-                  >
-                    {isSelected ? `✓ ${size}` : `+ ${size}`}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSavedSize(size);
-                    }}
-                    style={{
-                      padding: '6px 8px',
-                      color: 'var(--text-tertiary)',
-                      borderLeft: '1px solid var(--border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    title="ลบไซส์นี้ออกจากรายการที่บันทึกไว้"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
+                  {isSelected && <Check size={14} />}
+                  {size}
+                </button>
               );
             })}
           </div>
@@ -129,7 +120,7 @@ export function SizeSelector({ value = {}, onChange, category = '', productCode 
           type="text" 
           value={customSize}
           onChange={(e) => setCustomSize(e.target.value)}
-          placeholder="พิมพ์ชื่อไซส์ใหม่ (เช่น S, M, L, 42, ฟรีไซส์, กล่อง)..."
+          placeholder="พิมพ์ชื่อไซส์แบบกำหนดเอง (ถ้าไม่มีให้เลือกด้านบน)..."
           style={{
             padding: '10px 14px',
             borderRadius: 'var(--radius-md)',
@@ -239,7 +230,7 @@ export function SizeSelector({ value = {}, onChange, category = '', productCode 
                         whiteSpace: 'nowrap'
                       }}
                     >
-                      สุ่มบาร์โค้ด
+                      สร้างรหัสใหม่
                     </button>
                   </div>
 
