@@ -1,7 +1,7 @@
 import { useAppContext } from '../context/AppContext';
 
 export function useProducts() {
-  const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, updateStock, refreshProducts } = useAppContext();
+  const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, updateStock, updateProductStock, refreshProducts } = useAppContext();
 
   const getProductByBarcode = (barcode) => {
     for (const p of products) {
@@ -42,6 +42,7 @@ export function useProducts() {
     updateProduct,
     deleteProduct,
     updateStock,
+    updateProductStock,
     getProductByBarcode,
     filterProducts,
     refreshProducts

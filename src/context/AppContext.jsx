@@ -155,6 +155,22 @@ export function AppProvider({ children }) {
     }
   };
 
+  const updateProductStock = async (productId, newSizes, totalStock) => {
+    try {
+      const res = await fetch(`/api/products/${productId}/stock`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sizes: newSizes, totalStock })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setProducts(prev => prev.map(prod => prod.id === productId ? updated : prod));
+      }
+    } catch (err) {
+      console.error('Error updating product stock bulk:', err);
+    }
+  };
+
   const value = useMemo(() => ({
     products,
     isLoadingProducts,
@@ -171,6 +187,7 @@ export function AppProvider({ children }) {
     updateProduct,
     deleteProduct,
     updateStock,
+    updateProductStock,
     refreshProducts: fetchProducts
   }), [
     products, 
