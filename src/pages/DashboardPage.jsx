@@ -149,16 +149,18 @@ export function DashboardPage() {
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-main)' }}>
                   <th style={{
-                    padding: '12px 16px', textAlign: 'left', fontWeight: 700,
-                    color: 'var(--text-primary)', borderBottom: '2px solid var(--primary)',
+                    padding: '12px 16px', textAlign: 'center', fontWeight: 700,
+                    color: 'var(--text-primary)', border: '1px solid var(--border)',
+                    borderBottom: '2px solid var(--primary)',
                     position: 'sticky', left: 0, backgroundColor: 'var(--bg-main)', zIndex: 1, minWidth: '80px'
                   }}>
-                    ไซส์
+                    ไซส์ \ สินค้า
                   </th>
                   {stockMatrix.productsWithSizes.map(p => (
                     <th key={p.id} style={{
                       padding: '12px 16px', fontWeight: 600,
-                      color: 'var(--primary)', borderBottom: '2px solid var(--primary)', minWidth: '90px',
+                      color: 'var(--primary)', border: '1px solid var(--border)',
+                      borderBottom: '2px solid var(--primary)', minWidth: '90px',
                       whiteSpace: 'nowrap'
                     }}>
                       {p.name}
@@ -170,8 +172,8 @@ export function DashboardPage() {
                 {stockMatrix.allSizes.map((size, idx) => (
                   <tr key={size} style={{ backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)' }}>
                     <td style={{
-                      padding: '10px 16px', fontWeight: 600, textAlign: 'left',
-                      color: 'var(--text-primary)', borderRight: '1px solid var(--border)',
+                      padding: '10px 16px', fontWeight: 600, textAlign: 'center',
+                      color: 'var(--text-primary)', border: '1px solid var(--border)',
                       position: 'sticky', left: 0,
                       backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', zIndex: 1
                     }}>
@@ -187,11 +189,12 @@ export function DashboardPage() {
                         <td key={p.id} style={{
                           padding: '10px 16px',
                           fontWeight: stock !== null ? 600 : 400,
-                          color: stock === null ? 'var(--text-tertiary)' 
+                          backgroundColor: stock === null ? '#94a3b8' : 'transparent', // ถมสีเทาเข้มแบบในกระดาษ
+                          color: stock === null ? 'transparent' 
                             : stock === 0 ? 'var(--danger)' 
                             : stock <= 5 ? 'var(--warning)' 
                             : 'var(--text-primary)',
-                          borderRight: '1px solid var(--border-light)'
+                          border: '1px solid var(--border)', // ตีเส้นตารางทุกช่องแบบตารางจริง
                         }}>
                           {stock !== null ? stock : ''}
                         </td>
