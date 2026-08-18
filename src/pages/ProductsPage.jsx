@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Printer } from 'lucide-react';
+import { Plus, Search, Filter, Printer, Download } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { ProductList } from '../components/Products/ProductList';
 import { ProductForm } from '../components/Products/ProductForm';
@@ -7,6 +7,7 @@ import { Modal } from '../components/common/Modal';
 import { EmptyState } from '../components/common/EmptyState';
 import { BarcodeGenerator } from '../components/Barcode/BarcodeGenerator';
 import { PrintMasterSheetModal } from '../components/Products/PrintMasterSheetModal';
+import { exportProductsToExcel } from '../utils/excel';
 
 export function ProductsPage() {
   const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, filterProducts } = useProducts();
@@ -60,6 +61,10 @@ export function ProductsPage() {
     }
   };
 
+  const handleExportExcel = () => {
+    exportProductsToExcel(filteredProducts.length > 0 ? filteredProducts : products);
+  };
+
   const inputStyle = {
     padding: '8px 12px 8px 36px',
     borderRadius: 'var(--radius-md)',
@@ -76,6 +81,24 @@ export function ProductsPage() {
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>จัดการสินค้า</h1>
         
         <div style={{ display: 'flex', gap: '12px' }}>
+          <button
+            onClick={handleExportExcel}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 18px',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid #10b981',
+              color: '#10b981',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+            title="ดาวน์โหลดรายการสินค้าเป็นไฟล์ Excel (.xlsx)"
+          >
+            <Download size={18} /> Export Excel
+          </button>
+
           <button
             onClick={() => setIsPrintMasterOpen(true)}
             style={{

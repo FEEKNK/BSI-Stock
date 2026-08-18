@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Info, Plus, X, Trash2, Edit2, Folder, Ruler, Tag, AlertCircle } from 'lucide-react';
+import { Info, Plus, X, Trash2, Edit2, Folder, Ruler, Tag, AlertCircle, Download } from 'lucide-react';
 import { Modal } from './Modal';
+import { exportReferenceCodesToExcel } from '../../utils/excel';
 
 export function ReferenceTable() {
   const { products } = useAppContext();
@@ -283,10 +284,30 @@ export function ReferenceTable() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Structure explanation */}
       <div style={{ padding: '20px', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', border: '1px solid var(--primary)' }}>
-        <h3 style={{ margin: '0 0 12px 0', color: 'var(--primary)', fontSize: '1rem' }}>
-          <Info size={16} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
-          โครงสร้างบาร์โค้ด 12 หลัก
-        </h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+          <h3 style={{ margin: '0 0 12px 0', color: 'var(--primary)', fontSize: '1rem' }}>
+            <Info size={16} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+            โครงสร้างบาร์โค้ด 12 หลัก
+          </h3>
+          <button
+            onClick={() => exportReferenceCodesToExcel(categoryCodes, sizeCodes)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '6px 14px',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid #10b981',
+              color: '#10b981',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+            title="ดาวน์โหลดรหัสอ้างอิงเป็นไฟล์ Excel (.xlsx)"
+          >
+            <Download size={14} /> Export Excel (รหัสอ้างอิง)
+          </button>
+        </div>
         <div style={{ fontFamily: 'monospace', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px', letterSpacing: '2px' }}>
           [CC] [PPP] [SS] [NNNNN]
         </div>

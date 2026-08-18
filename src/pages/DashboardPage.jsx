@@ -6,6 +6,8 @@ import { StatsCard } from '../components/Dashboard/StatsCard';
 import { StockChart } from '../components/Dashboard/StockChart';
 import { Badge } from '../components/common/Badge';
 
+import { exportStockReportToExcel } from '../utils/excel';
+
 export function DashboardPage() {
   const { stats, lowStockItems } = useDashboard();
   const { products } = useAppContext();
@@ -57,37 +59,8 @@ export function DashboardPage() {
 
   const [activeCategoryTab, setActiveCategoryTab] = useState('ทั้งหมด');
 
-  const exportToCSV = () => {
-    let csvContent = "หมวดหมู่,ชื่อสินค้า,ไซส์,สต็อกคงเหลือ\n";
-    
-    groupedStockMatrix.forEach(group => {
-      group.products.forEach(p => {
-        if (!group.sizes || group.sizes.length === 0) {
-          csvContent += `"${group.category}","${p.name}","-","0"\n`;
-        } else {
-          group.sizes.forEach(size => {
-            const sizeData = p.sizes?.[size];
-            const stock = sizeData
-              ? (typeof sizeData === 'object' ? sizeData.stock : Number(sizeData))
-              : null;
-            if (stock !== null) {
-              csvContent += `"${group.category}","${p.name}","${size}","${stock}"\n`;
-            }
-          });
-        }
-      });
-    });
-
-    // Add BOM for Excel UTF-8 compatibility
-    const bom = "\uFEFF";
-    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `stock_report_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportExcel = () => {
+    exportStockReportToExcel(groupedStockMatrix, products);
   };
 
   return (
@@ -184,22 +157,22 @@ export function DashboardPage() {
               ตารางสต็อกแยกตามไซส์
             </h3>
             <button
-              onClick={exportToCSV}
+              onClick={handleExportExcel}
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
                 padding: '6px 12px',
                 backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-secondary)',
+                border: '1px solid #10b981',
+                color: '#10b981',
                 borderRadius: 'var(--radius-sm)',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 boxShadow: 'var(--shadow-sm)'
               }}
-              title="ดาวน์โหลดเป็นไฟล์ CSV"
+              title="ดาวน์โหลดรายงานสต็อกเป็นไฟล์ Excel (.xlsx)"
             >
-              <Download size={14} /> Export CSV
+              <Download size={14} /> Export Excel
             </button>
           </div>
           

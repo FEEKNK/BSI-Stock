@@ -4,6 +4,7 @@ import { useDispensing } from '../hooks/useDispensing';
 import { DispensingList } from '../components/Dispensing/DispensingList';
 import { DispensingForm } from '../components/Dispensing/DispensingForm';
 import { Modal } from '../components/common/Modal';
+import { exportHistoryToExcel } from '../utils/excel';
 
 export function DispensingPage() {
   const { history, isLoading, fetchHistory, addRecord, updateRecord, deleteRecord } = useDispensing();
@@ -23,8 +24,10 @@ export function DispensingPage() {
   const handleOpenModal = (record = null) => {
     if (record) {
       setEditingRecord(record);
-      setIsModalOpen(true);
+    } else {
+      setEditingRecord(null);
     }
+    setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
@@ -33,14 +36,12 @@ export function DispensingPage() {
   };
 
   const handleSubmit = async (data) => {
-    if (editingRecord && editingRecord.id) {
-      const result = await updateRecord(editingRecord.id, data);
-      if (result.success) {
-        handleCloseModal();
-      } else {
-        alert(result.error);
-      }
+    if (editingRecord) {
+      await updateRecord(editingRecord.id, data);
+    } else {
+      await addRecord(data);
     }
+    handleCloseModal();
   };
 
   const handleDelete = (id) => {
@@ -52,10 +53,7 @@ export function DispensingPage() {
 
   const confirmDelete = async () => {
     if (recordToDelete) {
-      const result = await deleteRecord(recordToDelete.id);
-      if (!result.success) {
-        alert(result.error);
-      }
+      await deleteRecord(recordToDelete.id);
       setRecordToDelete(null);
     }
   };
@@ -65,12 +63,19 @@ export function DispensingPage() {
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
-  const applyFilters = () => {
+  const handleSearch = (e) => {
+    e.preventDefault();
     fetchHistory(filters);
   };
 
-  const clearFilters = () => {
-    const emptyFilters = { hn: '', product_name: '', seller: '', start_date: '', end_date: '' };
+  const handleReset = () => {
+    const emptyFilters = {
+      hn: '',
+      product_name: '',
+      seller: '',
+      start_date: '',
+      end_date: ''
+    };
     setFilters(emptyFilters);
     fetchHistory(emptyFilters);
   };
@@ -85,39 +90,8 @@ export function DispensingPage() {
     fontSize: '0.875rem'
   };
 
-  const exportToCSV = () => {
-    let csvContent = "วัน/เวลาทำรายการ,ประเภท,HN,สินค้า,ไซส์,จำนวน,ผู้เบิก/ผู้รับ,หมายเหตุ\n";
-    
-    history.forEach(record => {
-      const rawDate = record.dispensed_date || record.created_at;
-      let dateStr = '-';
-      if (rawDate) {
-        const d = new Date(rawDate);
-        if (!isNaN(d.getTime())) {
-          dateStr = d.toLocaleString('th-TH');
-        }
-      }
-      const type = record.type === 'IN' ? 'รับเข้า' : 'เบิกออก';
-      const hn = record.hn || '-';
-      const product = record.product_name || '-';
-      const size = record.size || '-';
-      const quantity = record.quantity || 0;
-      const seller = record.seller || '-';
-      const note = record.note || '-';
-      
-      const escapeCsv = (str) => `"${String(str).replace(/"/g, '""')}"`;
-      csvContent += `${escapeCsv(dateStr)},${escapeCsv(type)},${escapeCsv(hn)},${escapeCsv(product)},${escapeCsv(size)},${escapeCsv(quantity)},${escapeCsv(seller)},${escapeCsv(note)}\n`;
-    });
-
-    const bom = "\uFEFF";
-    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `history_report_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExportExcel = () => {
+    exportHistoryToExcel(history);
   };
 
   return (
@@ -125,21 +99,21 @@ export function DispensingPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>ประวัติคลังสินค้า</h1>
         <button
-          onClick={exportToCSV}
+          onClick={handleExportExcel}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             padding: '8px 16px',
             backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            color: 'var(--text-secondary)',
+            border: '1px solid #10b981',
+            color: '#10b981',
             borderRadius: 'var(--radius-md)',
             fontWeight: 600,
             cursor: 'pointer',
             boxShadow: 'var(--shadow-sm)'
           }}
-          title="ดาวน์โหลดเป็นไฟล์ CSV"
+          title="ดาวน์โหลดประวัติเป็นไฟล์ Excel (.xlsx)"
         >
-          <Download size={18} /> Export CSV
+          <Download size={18} /> Export Excel
         </button>
       </div>
 
