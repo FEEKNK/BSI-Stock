@@ -25,13 +25,58 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
   const paginatedProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getStockStatus = (product) => {
-    const threshold = product.threshold || settings.globalThreshold;
-    const currentStock = product.totalStock !== undefined ? product.totalStock : 
-                         (product.total_stock !== undefined ? product.total_stock : 
-                         (product.sizes ? Object.values(product.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0));
-                         
-    if (currentStock === 0) return { label: 'หมด', type: 'danger' };
-    if (currentStock <= threshold) return { label: 'ใกล้หมด', type: 'warning' };
+    const threshold = product.threshold !== undefined && product.threshold !== null && product.threshold !== ''
+      ? Number(product.threshold) 
+      : (Number(settings?.globalThreshold) || 30);
+
+    const sizeKeys = product.sizes ? Object.keys(product.sizes) : [];
+    
+    let currentStock = 0;
+    let outOfStockSizes = 0;
+    let lowStockSizes = 0;
+
+    if (sizeKeys.length === 0) {
+      currentStock = Number(product.totalStock ?? product.total_stock ?? 0);
+      if (currentStock === 0) return { label: 'หมดสต็อก', type: 'danger' };
+      if (currentStock <= threshold) return { label: 'ใกล้หมด', type: 'warning' };
+      return { label: 'ปกติ', type: 'success' };
+    }
+
+    sizeKeys.forEach(size => {
+      const sizeData = product.sizes[size];
+      const stock = sizeData
+        ? (typeof sizeData === 'object' ? Number(sizeData?.stock ?? 0) : Number(sizeData))
+        : 0;
+      currentStock += stock;
+      if (stock === 0) {
+        outOfStockSizes++;
+      } else if (stock <= threshold) {
+        lowStockSizes++;
+      }
+    });
+
+    if (currentStock === 0) {
+      return { label: 'หมดสต็อก', type: 'danger' };
+    }
+
+    if (outOfStockSizes > 0) {
+      return { 
+        label: `ปกติ (${outOfStockSizes} ไซส์หมด)`, 
+        type: 'warning'
+      };
+    }
+
+    if (lowStockSizes > 0) {
+      return { 
+        label: `ปกติ (${lowStockSizes} ไซส์ใกล้หมด)`, 
+        type: 'warning'
+      };
+    }
+
+    if (currentStock <= threshold) {
+      return { label: 'ใกล้หมด', type: 'warning' };
+    }
+
     return { label: 'ปกติ', type: 'success' };
   };
 

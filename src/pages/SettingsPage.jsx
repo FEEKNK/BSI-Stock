@@ -35,7 +35,7 @@ export function SettingsPage() {
 
             <div>
               <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>
-                ค่าเริ่มต้น: แจ้งเตือนเมื่อสินค้าเหลือต่ำกว่า (ชิ้น)
+                ค่าเริ่มต้น: แจ้งเตือนเมื่อสต็อกแต่ละไซส์เหลือต่ำกว่า (ชิ้น)
               </label>
               <input 
                 type="number" 
@@ -54,8 +54,8 @@ export function SettingsPage() {
                 }}
               />
             </div>
-            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>
-              * สามารถตั้งค่าแจ้งเตือนแยกตามสินค้าได้ในหน้าแก้ไขสินค้า
+            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-tertiary)', lineHeight: '1.4' }}>
+              * ระบบจะตรวจสอบสต็อกและแจ้งเตือนแยกตามแต่ละไซส์ของสินค้า (สามารถตั้งค่าเฉพาะเจาะจงรายสินค้าได้ในหน้าแก้ไขสินค้า)
             </p>
           </div>
         </div>

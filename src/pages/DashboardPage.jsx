@@ -9,7 +9,7 @@ import { exportStockReportToExcel } from '../utils/excel';
 
 export function DashboardPage() {
   const { stats, lowStockItems } = useDashboard();
-  const { products } = useAppContext();
+  const { products, settings } = useAppContext();
 
   // Build the stock matrix (like the paper sheet)
   const groupedStockMatrix = useMemo(() => {
@@ -361,33 +361,41 @@ export function DashboardPage() {
                                   rowTotal += stock;
                                 }
 
+                                const threshold = p.threshold !== undefined && p.threshold !== null && p.threshold !== ''
+                                  ? Number(p.threshold)
+                                  : (Number(settings?.globalThreshold) || 30);
+
                                 // Style cell based on status
                                 let cellBg = '#ffffff';
                                 let textColor = 'var(--text-primary)';
                                 let fontWt = 700;
+                                let statusLabel = 'ปกติ';
 
                                 if (stock === null) {
                                   // Darker gray shade for empty/not applicable cells
                                   cellBg = '#e2e8f0';
                                   textColor = '#94a3b8';
                                   fontWt = 400;
+                                  statusLabel = 'ไม่มีไซส์นี้';
                                 } else if (stock === 0) {
                                   // Out of stock
                                   cellBg = '#fee2e2';
                                   textColor = 'var(--danger)';
                                   fontWt = 700;
-                                } else if (stock <= 5) {
-                                  // Low stock
+                                  statusLabel = 'หมดสต็อก';
+                                } else if (stock <= threshold) {
+                                  // Low stock based on threshold
                                   cellBg = '#fef3c7';
                                   textColor = '#d97706';
                                   fontWt = 700;
+                                  statusLabel = 'ใกล้หมด';
                                 }
 
                                 let tooltipText = '';
                                 if (stock !== null) {
-                                  tooltipText = `${p.name} | ไซส์: ${size} | สต็อก: ${stock} ชิ้น${stock === 0 ? ' (หมดสต็อก)' : ''}`;
+                                  tooltipText = `${p.name} | ไซส์: ${size} | สต็อก: ${stock} ชิ้น (${statusLabel})`;
                                 } else {
-                                  tooltipText = `${p.name} | ไซส์: ${size} | (ไม่มีไซส์นี้)`;
+                                  tooltipText = `${p.name} | ไซส์: ${size} | (${statusLabel})`;
                                 }
 
                                 return (
