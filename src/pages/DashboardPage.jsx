@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Package, AlertTriangle, AlertOctagon, TrendingUp, Download, FileSpreadsheet } from 'lucide-react';
+import { Package, AlertTriangle, AlertOctagon, TrendingUp, FileSpreadsheet } from 'lucide-react';
 import { useDashboard } from '../hooks/useDashboard';
 import { useAppContext } from '../context/AppContext';
 import { StatsCard } from '../components/Dashboard/StatsCard';
@@ -150,44 +150,24 @@ export function DashboardPage() {
             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
               📊 ตารางสต็อกแยกตามไซส์
             </h3>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <button
-                onClick={() => exportStockMatrix(groupedStockMatrix, 'xlsx')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  padding: '6px 12px',
-                  backgroundColor: '#107c41',
-                  border: 'none',
-                  color: '#ffffff',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 3px rgba(16, 124, 65, 0.2)'
-                }}
-                title="ดาวน์โหลดเป็นไฟล์ Excel (.xlsx) สวยงาม คอลัมน์พอดี"
-              >
-                <FileSpreadsheet size={14} /> Export Excel
-              </button>
-              <button
-                onClick={() => exportStockMatrix(groupedStockMatrix, 'csv')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  padding: '6px 12px',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-secondary)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: 'var(--shadow-sm)'
-                }}
-                title="ดาวน์โหลดเป็นไฟล์ CSV"
-              >
-                <Download size={14} /> Export CSV
-              </button>
-            </div>
+            <button
+              onClick={() => exportStockMatrix(groupedStockMatrix, 'xlsx')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '6px 12px',
+                backgroundColor: '#107c41',
+                border: 'none',
+                color: '#ffffff',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(16, 124, 65, 0.2)'
+              }}
+              title="ดาวน์โหลดเป็นไฟล์ Excel (.xlsx) สวยงาม คอลัมน์พอดี"
+            >
+              <FileSpreadsheet size={14} /> Export Excel
+            </button>
           </div>
           
           {/* Category Tabs */}

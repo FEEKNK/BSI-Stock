@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Download, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, Filter, FileSpreadsheet } from 'lucide-react';
 import { useDispensing } from '../hooks/useDispensing';
 import { DispensingList } from '../components/Dispensing/DispensingList';
 import { DispensingForm } from '../components/Dispensing/DispensingForm';
@@ -90,46 +90,25 @@ export function DispensingPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>ประวัติคลังสินค้า</h1>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button
-            onClick={() => exportDispensingHistory(history, 'xlsx')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '8px 16px',
-              backgroundColor: '#107c41',
-              border: 'none',
-              color: '#ffffff',
-              borderRadius: 'var(--radius-md)',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(16, 124, 65, 0.2)',
-              transition: 'all 0.2s'
-            }}
-            title="ดาวน์โหลดเป็นไฟล์ Excel (.xlsx) สวยงาม คอลัมน์พอดี ไม่มี 0:00"
-          >
-            <FileSpreadsheet size={18} /> Export Excel
-          </button>
-          <button
-            onClick={() => exportDispensingHistory(history, 'csv')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '8px 16px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-              borderRadius: 'var(--radius-md)',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all 0.2s'
-            }}
-            title="ดาวน์โหลดเป็นไฟล์ CSV (ไม่มี 0:00 และจัดฟอร์แมตแล้ว)"
-          >
-            <Download size={18} /> Export CSV
-          </button>
-        </div>
+        <button
+          onClick={() => exportDispensingHistory(history, 'xlsx')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '8px 16px',
+            backgroundColor: '#107c41',
+            border: 'none',
+            color: '#ffffff',
+            borderRadius: 'var(--radius-md)',
+            fontWeight: 600,
+            fontSize: '0.875rem',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(16, 124, 65, 0.2)',
+            transition: 'all 0.2s'
+          }}
+          title="ดาวน์โหลดเป็นไฟล์ Excel (.xlsx) สวยงาม คอลัมน์พอดี ไม่มี 0:00"
+        >
+          <FileSpreadsheet size={18} /> Export Excel
+        </button>
       </div>
 
       <div style={{ 
