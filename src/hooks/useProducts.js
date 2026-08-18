@@ -4,13 +4,18 @@ export function useProducts() {
   const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, updateStock, updateProductStock, refreshProducts } = useAppContext();
 
   const getProductByBarcode = (barcode) => {
+    if (!barcode) return null;
+    const cleanBarcode = String(barcode).trim().toLowerCase();
     for (const p of products) {
-      if (p.barcode === barcode) {
+      if (p.barcode && String(p.barcode).trim().toLowerCase() === cleanBarcode) {
+        return { product: p, matchedSize: null };
+      }
+      if (p.product_code && String(p.product_code).trim().toLowerCase() === cleanBarcode) {
         return { product: p, matchedSize: null };
       }
       if (p.sizes) {
         for (const [sizeKey, sizeData] of Object.entries(p.sizes)) {
-          if (sizeData && typeof sizeData === 'object' && sizeData.barcode === barcode) {
+          if (sizeData && typeof sizeData === 'object' && sizeData.barcode && String(sizeData.barcode).trim().toLowerCase() === cleanBarcode) {
             return { product: p, matchedSize: sizeKey };
           }
         }
@@ -22,12 +27,16 @@ export function useProducts() {
   const filterProducts = (filters) => {
     return products.filter(p => {
       if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        if (!p.name.toLowerCase().includes(searchLower) && 
-            !(p.barcode && p.barcode.includes(searchLower))) {
+        const searchLower = String(filters.search).trim().toLowerCase();
+        
+        // Match product name only
+        const matchName = p.name && String(p.name).toLowerCase().includes(searchLower);
+
+        if (!matchName) {
           return false;
         }
       }
+
       if (filters.category && filters.category !== 'all') {
         if (p.category !== filters.category) return false;
       }

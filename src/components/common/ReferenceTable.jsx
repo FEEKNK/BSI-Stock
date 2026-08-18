@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Info, Plus, X, Trash2 } from 'lucide-react';
+import { Info, Plus, X, Trash2, Edit2, Folder, Ruler, Tag, AlertCircle } from 'lucide-react';
+import { Modal } from './Modal';
 
 export function ReferenceTable() {
   const { products } = useAppContext();
   const [categoryCodes, setCategoryCodes] = useState([]);
   const [sizeCodes, setSizeCodes] = useState([]);
-  const [pppCurrentPage, setPppCurrentPage] = useState(1);
-  const pppItemsPerPage = 10;
+
+  // Validation / Error states for Add
+  const [catError, setCatError] = useState('');
+  const [sizeError, setSizeError] = useState('');
+
+  // Edit states
+  const [editingCat, setEditingCat] = useState(null);
+  const [editingCatError, setEditingCatError] = useState('');
+
+  const [editingSize, setEditingSize] = useState(null);
+  const [editingSizeError, setEditingSizeError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -30,15 +40,54 @@ export function ReferenceTable() {
 
   const handleAddCategoryCode = async (e) => {
     e.preventDefault();
-    if (!newCatCode || !newCatName) return;
-    await fetch('/api/category-codes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: newCatCode.padStart(2, '0'), name: newCatName })
-    });
-    setNewCatCode('');
-    setNewCatName('');
-    fetchData();
+    setCatError('');
+
+    const rawCode = newCatCode.trim();
+    const rawName = newCatName.trim();
+
+    if (!rawCode || !rawName) {
+      setCatError('กรุณากรอกทั้งรหัสและชื่อหมวดหมู่');
+      return;
+    }
+
+    if (!/^\d{1,2}$/.test(rawCode)) {
+      setCatError('รหัสหมวดหมู่ต้องเป็นตัวเลข 1-2 หลัก (เช่น 10, 20, 99)');
+      return;
+    }
+
+    const formattedCode = rawCode.padStart(2, '0');
+
+    // 1. Check duplicate code
+    const existingByCode = categoryCodes.find(c => c.code === formattedCode);
+    if (existingByCode) {
+      setCatError(`รหัสหมวดหมู่ '${formattedCode}' ซ้ำกับ "${existingByCode.name}" ที่มีอยู่แล้ว`);
+      return;
+    }
+
+    // 2. Check duplicate name
+    const existingByName = categoryCodes.find(c => c.name.trim().toLowerCase() === rawName.toLowerCase());
+    if (existingByName) {
+      setCatError(`ชื่อหมวดหมู่ "${rawName}" ซ้ำกับรหัส ${existingByName.code} ที่มีอยู่แล้ว`);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/category-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: formattedCode, name: rawName })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึก');
+      }
+      setNewCatCode('');
+      setNewCatName('');
+      setCatError('');
+      fetchData();
+    } catch (err) {
+      setCatError(err.message || 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+    }
   };
 
   const handleDeleteCategoryCode = async (code) => {
@@ -47,17 +96,116 @@ export function ReferenceTable() {
     fetchData();
   };
 
+  // Start Edit Category
+  const handleStartEditCat = (c) => {
+    setEditingCat({ code: c.code, name: c.name, originalCode: c.code });
+    setEditingCatError('');
+  };
+
+  // Save Edit Category
+  const handleSaveEditCat = async (e) => {
+    e.preventDefault();
+    setEditingCatError('');
+    if (!editingCat) return;
+
+    const rawCode = editingCat.code.trim();
+    const rawName = editingCat.name.trim();
+
+    if (!rawCode || !rawName) {
+      setEditingCatError('กรุณากรอกทั้งรหัสและชื่อหมวดหมู่');
+      return;
+    }
+
+    if (!/^\d{1,2}$/.test(rawCode)) {
+      setEditingCatError('รหัสหมวดหมู่ต้องเป็นตัวเลข 1-2 หลัก (เช่น 10, 20)');
+      return;
+    }
+
+    const formattedCode = rawCode.padStart(2, '0');
+
+    // Duplicate check for Code (excluding currently edited item)
+    if (formattedCode !== editingCat.originalCode) {
+      const existingByCode = categoryCodes.find(c => c.code === formattedCode);
+      if (existingByCode) {
+        setEditingCatError(`รหัสหมวดหมู่ '${formattedCode}' ซ้ำกับ "${existingByCode.name}" ที่มีอยู่แล้ว`);
+        return;
+      }
+    }
+
+    // Duplicate check for Name (excluding currently edited item)
+    const existingByName = categoryCodes.find(c => c.code !== editingCat.originalCode && c.name.trim().toLowerCase() === rawName.toLowerCase());
+    if (existingByName) {
+      setEditingCatError(`ชื่อหมวดหมู่ "${rawName}" ซ้ำกับรหัส ${existingByName.code} ที่มีอยู่แล้ว`);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/category-codes/${editingCat.originalCode}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: formattedCode, name: rawName })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึก');
+      }
+      setEditingCat(null);
+      fetchData();
+    } catch (err) {
+      setEditingCatError(err.message || 'บันทึกการแก้ไขไม่สำเร็จ');
+    }
+  };
+
   const handleAddSizeCode = async (e) => {
     e.preventDefault();
-    if (!newSizeCode || !newSizeName) return;
-    await fetch('/api/size-codes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: newSizeCode.padStart(2, '0'), name: newSizeName })
-    });
-    setNewSizeCode('');
-    setNewSizeName('');
-    fetchData();
+    setSizeError('');
+
+    const rawCode = newSizeCode.trim();
+    const rawName = newSizeName.trim();
+
+    if (!rawCode || !rawName) {
+      setSizeError('กรุณากรอกทั้งรหัสและชื่อไซส์');
+      return;
+    }
+
+    if (!/^\d{1,2}$/.test(rawCode)) {
+      setSizeError('รหัสไซส์ต้องเป็นตัวเลข 1-2 หลัก (เช่น 01, 02, 32)');
+      return;
+    }
+
+    const formattedCode = rawCode.padStart(2, '0');
+
+    // 1. Check duplicate code
+    const existingByCode = sizeCodes.find(s => s.code === formattedCode);
+    if (existingByCode) {
+      setSizeError(`รหัสไซส์ '${formattedCode}' ซ้ำกับไซส์ "${existingByCode.name}" ที่มีอยู่แล้ว`);
+      return;
+    }
+
+    // 2. Check duplicate name
+    const existingByName = sizeCodes.find(s => s.name.trim().toLowerCase() === rawName.toLowerCase());
+    if (existingByName) {
+      setSizeError(`ชื่อไซส์ "${rawName}" ซ้ำกับรหัส ${existingByName.code} ที่มีอยู่แล้ว`);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/size-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: formattedCode, name: rawName })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึก');
+      }
+      setNewSizeCode('');
+      setNewSizeName('');
+      setSizeError('');
+      fetchData();
+    } catch (err) {
+      setSizeError(err.message || 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+    }
   };
 
   const handleDeleteSizeCode = async (code) => {
@@ -65,6 +213,71 @@ export function ReferenceTable() {
     await fetch(`/api/size-codes/${code}`, { method: 'DELETE' });
     fetchData();
   };
+
+  // Start Edit Size
+  const handleStartEditSize = (s) => {
+    setEditingSize({ code: s.code, name: s.name, originalCode: s.code });
+    setEditingSizeError('');
+  };
+
+  // Save Edit Size
+  const handleSaveEditSize = async (e) => {
+    e.preventDefault();
+    setEditingSizeError('');
+    if (!editingSize) return;
+
+    const rawCode = editingSize.code.trim();
+    const rawName = editingSize.name.trim();
+
+    if (!rawCode || !rawName) {
+      setEditingSizeError('กรุณากรอกทั้งรหัสและชื่อไซส์');
+      return;
+    }
+
+    if (!/^\d{1,2}$/.test(rawCode)) {
+      setEditingSizeError('รหัสไซส์ต้องเป็นตัวเลข 1-2 หลัก (เช่น 01, 02)');
+      return;
+    }
+
+    const formattedCode = rawCode.padStart(2, '0');
+
+    // Duplicate check for Code (excluding currently edited item)
+    if (formattedCode !== editingSize.originalCode) {
+      const existingByCode = sizeCodes.find(s => s.code === formattedCode);
+      if (existingByCode) {
+        setEditingSizeError(`รหัสไซส์ '${formattedCode}' ซ้ำกับ "${existingByCode.name}" ที่มีอยู่แล้ว`);
+        return;
+      }
+    }
+
+    // Duplicate check for Name (excluding currently edited item)
+    const existingByName = sizeCodes.find(s => s.code !== editingSize.originalCode && s.name.trim().toLowerCase() === rawName.toLowerCase());
+    if (existingByName) {
+      setEditingSizeError(`ชื่อไซส์ "${rawName}" ซ้ำกับรหัส ${existingByName.code} ที่มีอยู่แล้ว`);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/size-codes/${editingSize.originalCode}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: formattedCode, name: rawName })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึก');
+      }
+      setEditingSize(null);
+      fetchData();
+    } catch (err) {
+      setEditingSizeError(err.message || 'บันทึกการแก้ไขไม่สำเร็จ');
+    }
+  };
+
+  const filteredProducts = products.filter(p => p.product_code).sort((a, b) => {
+    if (a.category !== b.category) return (a.category || '').localeCompare(b.category || '');
+    return (a.product_code || '').localeCompare(b.product_code || '');
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -85,165 +298,496 @@ export function ReferenceTable() {
         </div>
       </div>
 
-      {/* Category codes table */}
+      {/* Category codes table with Freeze Panel */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <h4 style={{ margin: 0, color: 'var(--text-primary)', fontWeight: 600 }}>📁 ตารางรหัสหมวดหมู่ (CC)</h4>
+          <h4 style={{ margin: 0, color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Folder size={18} color="var(--primary)" />
+            ตารางรหัสหมวดหมู่ (CC)
+            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', backgroundColor: 'var(--bg-surface)', padding: '2px 8px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              {categoryCodes.length} รายการ
+            </span>
+          </h4>
         </div>
-        <div style={{ backgroundColor: 'var(--bg-main)', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
-          <form onSubmit={handleAddCategoryCode} style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-            <input type="text" value={newCatCode} onChange={e => setNewCatCode(e.target.value)} placeholder="รหัส (เช่น 10)" maxLength={2} style={{ width: '100px', padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }} />
-            <input type="text" value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="ชื่อหมวดหมู่ (เช่น เสื้อยืด)" style={{ flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }} />
-            <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}><Plus size={16} /> เพิ่ม</button>
-          </form>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '2px solid var(--primary)' }}>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>รหัส</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>หมวดหมู่</th>
-                <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: 'var(--primary)' }}>จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categoryCodes.map((c, i) => (
-                <tr key={c.code} style={{ backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '10px 16px', fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>{c.code}</td>
-                  <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>{c.name}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right' }}>
-                    <button onClick={() => handleDeleteCategoryCode(c.code)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }} title="ลบรหัสนี้"><Trash2 size={16} /></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Size codes table */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <h4 style={{ margin: 0, color: 'var(--text-primary)', fontWeight: 600 }}>📏 ตารางรหัสไซส์ (SS)</h4>
-        </div>
-        <div style={{ backgroundColor: 'var(--bg-main)', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
-          <form onSubmit={handleAddSizeCode} style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-            <input type="text" value={newSizeCode} onChange={e => setNewSizeCode(e.target.value)} placeholder="รหัส (เช่น 01)" maxLength={2} style={{ width: '100px', padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }} />
-            <input type="text" value={newSizeName} onChange={e => setNewSizeName(e.target.value)} placeholder="ชื่อไซส์ (เช่น XS)" style={{ flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }} />
-            <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}><Plus size={16} /> เพิ่ม</button>
-          </form>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
-            {sizeCodes.map(s => (
-              <div key={s.code} style={{
-                padding: '8px 12px', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        <div style={{ backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ padding: '16px' }}>
+            {catError && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid var(--danger)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--danger)',
+                fontSize: '0.875rem',
+                marginBottom: '12px',
+                fontWeight: 500
               }}>
-                <div>
-                  <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem', color: 'var(--primary)', marginRight: '8px' }}>{s.code}</span>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{s.name}</span>
-                </div>
-                <button onClick={() => handleDeleteSizeCode(s.code)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }} title="ลบรหัสนี้"><X size={14} /></button>
+                <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                <span>{catError}</span>
               </div>
-            ))}
+            )}
+            <form onSubmit={handleAddCategoryCode} style={{ display: 'flex', gap: '8px' }}>
+              <input 
+                type="text" 
+                value={newCatCode} 
+                onChange={e => {
+                  setNewCatCode(e.target.value);
+                  if (catError) setCatError('');
+                }} 
+                placeholder="รหัส (เช่น 10)" 
+                maxLength={2} 
+                style={{ width: '100px', padding: '8px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${catError ? 'var(--danger)' : 'var(--border)'}` }} 
+              />
+              <input 
+                type="text" 
+                value={newCatName} 
+                onChange={e => {
+                  setNewCatName(e.target.value);
+                  if (catError) setCatError('');
+                }} 
+                placeholder="ชื่อหมวดหมู่ (เช่น เสื้อยืด)" 
+                style={{ flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${catError ? 'var(--danger)' : 'var(--border)'}` }} 
+              />
+              <button 
+                type="submit" 
+                style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Plus size={16} /> เพิ่ม
+              </button>
+            </form>
+          </div>
+
+          {/* Freeze Panel (Scrollable Body + Sticky Header) */}
+          <div style={{ maxHeight: '320px', overflowY: 'auto', borderTop: '1px solid var(--border)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 10,
+                  boxShadow: '0 1px 0 var(--border)'
+                }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>รหัส</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>หมวดหมู่</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: 'var(--primary)' }}>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categoryCodes.map((c, i) => (
+                  <tr key={c.code} style={{ backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '10px 16px', fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>{c.code}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>{c.name}</td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        <button 
+                          onClick={() => handleStartEditCat(c)} 
+                          style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }} 
+                          title="แก้ไขรหัสหมวดหมู่นี้"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteCategoryCode(c.code)} 
+                          style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }} 
+                          title="ลบรหัสนี้"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {categoryCodes.length === 0 && (
+                  <tr>
+                    <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      ยังไม่มีรหัสหมวดหมู่
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      {/* Product codes table */}
+      {/* Size codes table with Freeze Panel */}
       <div>
-        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)', fontWeight: 600 }}>🏷️ ตารางรหัสสินค้า (PPP)</h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <h4 style={{ margin: 0, color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Ruler size={18} color="var(--primary)" />
+            ตารางรหัสไซส์ (SS)
+            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', backgroundColor: 'var(--bg-surface)', padding: '2px 8px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              {sizeCodes.length} รายการ
+            </span>
+          </h4>
+        </div>
         <div style={{ backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '2px solid var(--primary)' }}>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>รหัส (PPP)</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>ชื่อสินค้า</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>หมวดหมู่</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(() => {
-                const filteredProducts = products.filter(p => p.product_code).sort((a, b) => {
-                  if (a.category !== b.category) return (a.category || '').localeCompare(b.category || '');
-                  return (a.product_code || '').localeCompare(b.product_code || '');
-                });
-                const totalPages = Math.ceil(filteredProducts.length / pppItemsPerPage);
-                const paginatedProducts = filteredProducts.slice((pppCurrentPage - 1) * pppItemsPerPage, pppCurrentPage * pppItemsPerPage);
+          <div style={{ padding: '16px' }}>
+            {sizeError && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid var(--danger)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--danger)',
+                fontSize: '0.875rem',
+                marginBottom: '12px',
+                fontWeight: 500
+              }}>
+                <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                <span>{sizeError}</span>
+              </div>
+            )}
+            <form onSubmit={handleAddSizeCode} style={{ display: 'flex', gap: '8px' }}>
+              <input 
+                type="text" 
+                value={newSizeCode} 
+                onChange={e => {
+                  setNewSizeCode(e.target.value);
+                  if (sizeError) setSizeError('');
+                }} 
+                placeholder="รหัส (เช่น 01)" 
+                maxLength={2} 
+                style={{ width: '100px', padding: '8px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${sizeError ? 'var(--danger)' : 'var(--border)'}` }} 
+              />
+              <input 
+                type="text" 
+                value={newSizeName} 
+                onChange={e => {
+                  setNewSizeName(e.target.value);
+                  if (sizeError) setSizeError('');
+                }} 
+                placeholder="ชื่อไซส์ (เช่น XS)" 
+                style={{ flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${sizeError ? 'var(--danger)' : 'var(--border)'}` }} 
+              />
+              <button 
+                type="submit" 
+                style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Plus size={16} /> เพิ่ม
+              </button>
+            </form>
+          </div>
 
-                return (
-                  <>
-                    {paginatedProducts.map((p, i) => (
-                      <tr key={p.id} style={{ backgroundColor: i % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '10px 16px', fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>{p.product_code}</td>
-                        <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>{p.name}</td>
-                        <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{p.category}</td>
-                      </tr>
-                    ))}
-                    {totalPages > 1 && (
-                      <tr style={{ backgroundColor: 'var(--bg-main)' }}>
-                        <td colSpan={3} style={{ padding: '16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                              แสดง {((pppCurrentPage - 1) * pppItemsPerPage) + 1} ถึง {Math.min(pppCurrentPage * pppItemsPerPage, filteredProducts.length)} จากทั้งหมด {filteredProducts.length} รายการ
-                            </div>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button
-                                onClick={() => setPppCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={pppCurrentPage === 1}
-                                style={{
-                                  padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)',
-                                  backgroundColor: pppCurrentPage === 1 ? 'var(--bg-surface)' : 'var(--bg-main)',
-                                  color: pppCurrentPage === 1 ? 'var(--text-tertiary)' : 'var(--text-primary)',
-                                  cursor: pppCurrentPage === 1 ? 'not-allowed' : 'pointer'
-                                }}
-                              >
-                                ก่อนหน้า
-                              </button>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {Array.from({ length: totalPages }).map((_, idx) => {
-                                  const page = idx + 1;
-                                  if (page === 1 || page === totalPages || (page >= pppCurrentPage - 1 && page <= pppCurrentPage + 1)) {
-                                    return (
-                                      <button
-                                        key={page} onClick={() => setPppCurrentPage(page)}
-                                        style={{
-                                          padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid',
-                                          borderColor: pppCurrentPage === page ? 'var(--primary)' : 'var(--border)',
-                                          backgroundColor: pppCurrentPage === page ? 'var(--primary)' : 'var(--bg-main)',
-                                          color: pppCurrentPage === page ? '#fff' : 'var(--text-primary)', cursor: 'pointer'
-                                        }}
-                                      >
-                                        {page}
-                                      </button>
-                                    );
-                                  } else if (page === pppCurrentPage - 2 || page === pppCurrentPage + 2) {
-                                    return <span key={page} style={{ padding: '0 4px', color: 'var(--text-secondary)' }}>...</span>;
-                                  }
-                                  return null;
-                                })}
-                              </div>
-                              <button
-                                onClick={() => setPppCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={pppCurrentPage === totalPages}
-                                style={{
-                                  padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)',
-                                  backgroundColor: pppCurrentPage === totalPages ? 'var(--bg-surface)' : 'var(--bg-main)',
-                                  color: pppCurrentPage === totalPages ? 'var(--text-tertiary)' : 'var(--text-primary)',
-                                  cursor: pppCurrentPage === totalPages ? 'not-allowed' : 'pointer'
-                                }}
-                              >
-                                ถัดไป
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                );
-              })()}
-            </tbody>
-          </table>
+          {/* Freeze Panel for Size Codes */}
+          <div style={{ maxHeight: '280px', overflowY: 'auto', padding: '16px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
+              {sizeCodes.map(s => (
+                <div key={s.code} style={{
+                  padding: '8px 12px', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <div>
+                    <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem', color: 'var(--primary)', marginRight: '8px' }}>{s.code}</span>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{s.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <button 
+                      onClick={() => handleStartEditSize(s)} 
+                      style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }} 
+                      title="แก้ไขรหัสไซส์"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteSizeCode(s.code)} 
+                      style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }} 
+                      title="ลบรหัสนี้"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {sizeCodes.length === 0 && (
+                <div style={{ gridColumn: '1 / -1', padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  ยังไม่มีรหัสไซส์
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Product codes table with Freeze Panel */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <h4 style={{ margin: 0, color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Tag size={18} color="var(--primary)" />
+            ตารางรหัสสินค้า (PPP)
+            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-tertiary)', backgroundColor: 'var(--bg-surface)', padding: '2px 8px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              {filteredProducts.length} รายการ
+            </span>
+          </h4>
+        </div>
+        <div style={{ backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+          {/* Freeze Panel (Scrollable Body + Sticky Header) */}
+          <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 10,
+                  boxShadow: '0 1px 0 var(--border)'
+                }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>รหัส (PPP)</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>ชื่อสินค้า</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--primary)' }}>หมวดหมู่</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.map((p, i) => (
+                  <tr key={p.id} style={{ backgroundColor: i % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '10px 16px', fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>{p.product_code}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>{p.name}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{p.category}</td>
+                  </tr>
+                ))}
+                {filteredProducts.length === 0 && (
+                  <tr>
+                    <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      ยังไม่มีรหัสสินค้าที่บันทึก
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Category Modal */}
+      <Modal
+        isOpen={!!editingCat}
+        onClose={() => setEditingCat(null)}
+        title={`แก้ไขรหัสหมวดหมู่ (${editingCat?.originalCode})`}
+      >
+        {editingCat && (
+          <form onSubmit={handleSaveEditCat} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {editingCatError && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid var(--danger)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--danger)',
+                fontSize: '0.875rem',
+                fontWeight: 500
+              }}>
+                <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                <span>{editingCatError}</span>
+              </div>
+            )}
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                รหัสหมวดหมู่ (CC - 2 หลัก)
+              </label>
+              <input
+                type="text"
+                value={editingCat.code}
+                onChange={(e) => {
+                  setEditingCat(prev => ({ ...prev, code: e.target.value }));
+                  if (editingCatError) setEditingCatError('');
+                }}
+                maxLength={2}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-main)',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'monospace',
+                  fontWeight: 700,
+                  fontSize: '1rem'
+                }}
+                required
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                ชื่อหมวดหมู่
+              </label>
+              <input
+                type="text"
+                value={editingCat.name}
+                onChange={(e) => {
+                  setEditingCat(prev => ({ ...prev, name: e.target.value }));
+                  if (editingCatError) setEditingCatError('');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-main)',
+                  color: 'var(--text-primary)',
+                  fontSize: '1rem'
+                }}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setEditingCat(null)}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  fontWeight: 500
+                }}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  backgroundColor: 'var(--primary)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                บันทึกการแก้ไข
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Edit Size Modal */}
+      <Modal
+        isOpen={!!editingSize}
+        onClose={() => setEditingSize(null)}
+        title={`แก้ไขรหัสไซส์ (${editingSize?.originalCode})`}
+      >
+        {editingSize && (
+          <form onSubmit={handleSaveEditSize} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {editingSizeError && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid var(--danger)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--danger)',
+                fontSize: '0.875rem',
+                fontWeight: 500
+              }}>
+                <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                <span>{editingSizeError}</span>
+              </div>
+            )}
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                รหัสไซส์ (SS - 2 หลัก)
+              </label>
+              <input
+                type="text"
+                value={editingSize.code}
+                onChange={(e) => {
+                  setEditingSize(prev => ({ ...prev, code: e.target.value }));
+                  if (editingSizeError) setEditingSizeError('');
+                }}
+                maxLength={2}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-main)',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'monospace',
+                  fontWeight: 700,
+                  fontSize: '1rem'
+                }}
+                required
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                ชื่อไซส์
+              </label>
+              <input
+                type="text"
+                value={editingSize.name}
+                onChange={(e) => {
+                  setEditingSize(prev => ({ ...prev, name: e.target.value }));
+                  if (editingSizeError) setEditingSizeError('');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-main)',
+                  color: 'var(--text-primary)',
+                  fontSize: '1rem'
+                }}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setEditingSize(null)}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  fontWeight: 500
+                }}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  backgroundColor: 'var(--primary)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                บันทึกการแก้ไข
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

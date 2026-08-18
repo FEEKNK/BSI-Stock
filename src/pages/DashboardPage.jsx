@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Package, AlertTriangle, AlertOctagon, TrendingUp, Download } from 'lucide-react';
+import { Package, AlertTriangle, AlertOctagon, TrendingUp, Download, Table2, Filter } from 'lucide-react';
 import { useDashboard } from '../hooks/useDashboard';
 import { useAppContext } from '../context/AppContext';
 import { StatsCard } from '../components/Dashboard/StatsCard';
@@ -179,8 +179,9 @@ export function DashboardPage() {
       }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              📊 ตารางสต็อกแยกตามไซส์
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Table2 size={18} color="var(--primary)" />
+              ตารางสต็อกแยกตามไซส์
             </h3>
             <button
               onClick={exportToCSV}
@@ -202,48 +203,41 @@ export function DashboardPage() {
             </button>
           </div>
           
-          {/* Category Tabs */}
+          {/* Category Filter Dropdown */}
           {groupedStockMatrix.length > 0 && (
-            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-              <button
-                onClick={() => setActiveCategoryTab('ทั้งหมด')}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: '20px',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  border: '1px solid',
-                  backgroundColor: activeCategoryTab === 'ทั้งหมด' ? 'var(--primary)' : 'transparent',
-                  color: activeCategoryTab === 'ทั้งหมด' ? '#ffffff' : 'var(--text-secondary)',
-                  borderColor: activeCategoryTab === 'ทั้งหมด' ? 'var(--primary)' : 'var(--border)',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.2s'
-                }}
-              >
-                ทั้งหมด
-              </button>
-              {groupedStockMatrix.map(group => (
-                <button
-                  key={group.category}
-                  onClick={() => setActiveCategoryTab(group.category)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ position: 'relative', minWidth: '200px' }}>
+                <Filter size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                <select
+                  value={activeCategoryTab}
+                  onChange={(e) => setActiveCategoryTab(e.target.value)}
                   style={{
-                    padding: '6px 16px',
-                    borderRadius: '20px',
+                    width: '100%',
+                    padding: '7px 32px 7px 36px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
                     fontSize: '0.875rem',
                     fontWeight: 500,
-                    border: '1px solid',
-                    backgroundColor: activeCategoryTab === group.category ? 'var(--primary)' : 'transparent',
-                    color: activeCategoryTab === group.category ? '#ffffff' : 'var(--text-secondary)',
-                    borderColor: activeCategoryTab === group.category ? 'var(--primary)' : 'var(--border)',
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.2s'
+                    outline: 'none',
+                    appearance: 'none',
+                    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 10px center',
+                    backgroundSize: '16px',
+                    boxShadow: 'var(--shadow-sm)'
                   }}
                 >
-                  {group.category}
-                </button>
-              ))}
+                  <option value="ทั้งหมด">ทุกหมวดหมู่ (ทั้งหมด)</option>
+                  {groupedStockMatrix.map(group => (
+                    <option key={group.category} value={group.category}>
+                      {group.category}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
         </div>

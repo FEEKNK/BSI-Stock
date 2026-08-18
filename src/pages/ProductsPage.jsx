@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Camera, Printer } from 'lucide-react';
+import { Plus, Search, Filter, Printer } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { ProductList } from '../components/Products/ProductList';
 import { ProductForm } from '../components/Products/ProductForm';
 import { Modal } from '../components/common/Modal';
 import { EmptyState } from '../components/common/EmptyState';
-import { BarcodeScanner } from '../components/Barcode/BarcodeScanner';
 import { BarcodeGenerator } from '../components/Barcode/BarcodeGenerator';
 import { PrintMasterSheetModal } from '../components/Products/PrintMasterSheetModal';
 
@@ -14,8 +13,6 @@ export function ProductsPage() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [scannerManualInput, setScannerManualInput] = useState('');
   const [productToDelete, setProductToDelete] = useState(null);
   const [productToPrint, setProductToPrint] = useState(null);
   const [isPrintMasterOpen, setIsPrintMasterOpen] = useState(false);
@@ -38,25 +35,6 @@ export function ProductsPage() {
   const handleCloseModal = () => {
     setEditingProduct(null);
     setIsModalOpen(false);
-  };
-
-  const handleScanBarcode = (decodedText) => {
-    setIsScannerOpen(false);
-    setScannerManualInput('');
-    // Find if product already exists
-    const existing = products.find(p => p.barcode === decodedText);
-    if (existing) {
-      handleOpenModal(existing);
-    } else {
-      handleOpenModal({ barcode: decodedText });
-    }
-  };
-
-  const handleManualScanSubmit = (e) => {
-    e.preventDefault();
-    if (scannerManualInput.trim()) {
-      handleScanBarcode(scannerManualInput.trim());
-    }
   };
 
   const handleSubmit = (data) => {
@@ -116,23 +94,6 @@ export function ProductsPage() {
           </button>
 
           <button
-            onClick={() => setIsScannerOpen(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '10px 18px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--primary)',
-              color: 'var(--primary)',
-              borderRadius: 'var(--radius-md)',
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            <Camera size={18} /> สแกนบาร์โค้ด
-          </button>
-
-          <button
             onClick={() => handleOpenModal()}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px',
@@ -155,7 +116,7 @@ export function ProductsPage() {
           <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
           <input
             type="text"
-            placeholder="ค้นหาชื่อสินค้า, บาร์โค้ด..."
+            placeholder="ค้นหาชื่อสินค้า..."
             value={filters.search}
             onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
             style={inputStyle}
@@ -183,20 +144,12 @@ export function ProductsPage() {
           title="ยังไม่มีสินค้าในคลัง"
           description="เริ่มต้นจัดการคลังสินค้าของคุณโดยการเพิ่มสินค้าชิ้นแรก"
           action={
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setIsScannerOpen(true)}
-                style={{ padding: '10px 20px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: 'var(--radius-md)', fontWeight: 600 }}
-              >
-                สแกนบาร์โค้ดสินค้า
-              </button>
-              <button
-                onClick={() => handleOpenModal()}
-                style={{ padding: '10px 20px', backgroundColor: 'var(--primary)', color: 'white', borderRadius: 'var(--radius-md)', fontWeight: 600 }}
-              >
-                เพิ่มสินค้าเลย
-              </button>
-            </div>
+            <button
+              onClick={() => handleOpenModal()}
+              style={{ padding: '10px 20px', backgroundColor: 'var(--primary)', color: 'white', borderRadius: 'var(--radius-md)', fontWeight: 600 }}
+            >
+              เพิ่มสินค้าเลย
+            </button>
           }
         />
       ) : (
@@ -219,64 +172,6 @@ export function ProductsPage() {
           onSubmit={handleSubmit}
           onCancel={handleCloseModal}
         />
-      </Modal>
-
-      {/* Camera Barcode Scanner Modal directly from Products Page */}
-      <Modal
-        isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-        title="สแกนหรือพิมพ์บาร์โค้ดเพื่อค้นหา/เพิ่มสินค้า"
-      >
-        <div style={{ textAlign: 'center' }}>
-          <form onSubmit={handleManualScanSubmit} style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-            <input
-              type="text"
-              value={scannerManualInput}
-              onChange={(e) => setScannerManualInput(e.target.value)}
-              placeholder="สแกนหรือพิมพ์บาร์โค้ดที่นี่ แล้วกด Enter..."
-              style={{
-                flex: 1,
-                padding: '12px 16px',
-                borderRadius: 'var(--radius-md)',
-                border: '2px solid var(--primary)',
-                fontSize: '1rem',
-                fontFamily: 'monospace',
-                backgroundColor: 'var(--bg-main)',
-                color: 'var(--text-primary)'
-              }}
-              autoFocus
-            />
-            <button
-              type="submit"
-              style={{
-                padding: '0 24px',
-                backgroundColor: 'var(--primary)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontWeight: 600,
-                fontSize: '1rem',
-                cursor: 'pointer'
-              }}
-            >
-              ตกลง
-            </button>
-          </form>
-
-          <div style={{ position: 'relative' }}>
-            <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--bg-surface)', padding: '0 12px', color: 'var(--text-tertiary)', fontSize: '0.875rem', zIndex: 1 }}>
-              หรือใช้กล้องสแกน
-            </div>
-            <div style={{ borderTop: '1px solid var(--border)', margin: '0 0 24px 0' }}></div>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.875rem' }}>
-              (หากพบในระบบจะเปิดหน้าแก้ไข/เพิ่มสต็อกให้ทันที หรือหากยังไม่มีจะเปิดหน้าเพิ่มสินค้าใหม่)
-            </p>
-            <BarcodeScanner 
-              elementId="products-page-scanner" 
-              onScan={handleScanBarcode} 
-            />
-          </div>
-        </div>
       </Modal>
 
       {/* Delete Confirmation Modal */}

@@ -1,25 +1,52 @@
 import React, { useState } from 'react';
-import { Edit2, Trash2, Calendar, User, Package, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { Edit2, Trash2, Calendar, Clock, User, Package, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 
 export function DispensingList({ history, onEdit, onDelete }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   if (!history || history.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-        ไม่พบประวัติการเบิกสินค้า
+        ไม่พบประวัติการทำรายการ
       </div>
     );
   }
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
   const totalPages = Math.ceil(history.length / itemsPerPage);
   const paginatedHistory = history.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const d = new Date(dateString);
-    return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+  const formatDateTime = (record) => {
+    const rawDate = record.dispensed_date || record.created_at;
+    if (!rawDate) return { dateStr: '-', timeStr: '' };
+
+    let dateObj = new Date(rawDate);
+    if (isNaN(dateObj.getTime()) && record.created_at) {
+      dateObj = new Date(record.created_at);
+    }
+    if (isNaN(dateObj.getTime())) return { dateStr: '-', timeStr: '' };
+
+    const dateStr = dateObj.toLocaleDateString('th-TH', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+
+    // Check time
+    let timeObj = dateObj;
+    if (record.created_at) {
+      const createdObj = new Date(record.created_at);
+      if (!isNaN(createdObj.getTime())) {
+        timeObj = createdObj;
+      }
+    }
+
+    const timeStr = timeObj.toLocaleTimeString('th-TH', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    return { dateStr, timeStr };
   };
 
   return (
@@ -34,7 +61,7 @@ export function DispensingList({ history, onEdit, onDelete }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-main)' }}>
-              <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>วันที่เบิก</th>
+              <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>วัน/เวลาทำรายการ</th>
               <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>ประเภท</th>
               <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>HN</th>
               <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>สินค้า</th>
@@ -45,14 +72,24 @@ export function DispensingList({ history, onEdit, onDelete }) {
             </tr>
           </thead>
           <tbody>
-            {paginatedHistory.map(record => (
-              <tr key={record.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '16px', color: 'var(--text-primary)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Calendar size={16} style={{ color: 'var(--text-tertiary)' }} />
-                    {formatDate(record.dispensed_date)}
-                  </div>
-                </td>
+            {paginatedHistory.map(record => {
+              const { dateStr, timeStr } = formatDateTime(record);
+              return (
+                <tr key={record.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '16px', color: 'var(--text-primary)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, fontSize: '0.875rem' }}>
+                        <Calendar size={15} style={{ color: 'var(--primary)' }} />
+                        <span>{dateStr}</span>
+                      </div>
+                      {timeStr && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-tertiary)', paddingLeft: '21px' }}>
+                          <Clock size={12} />
+                          <span>{timeStr} น.</span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
                 <td style={{ padding: '16px' }}>
                   {record.type === 'IN' ? (
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--success-bg)', color: 'var(--success)', fontSize: '0.75rem', fontWeight: 600 }}>
@@ -104,7 +141,8 @@ export function DispensingList({ history, onEdit, onDelete }) {
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+          })}
           </tbody>
         </table>
       </div>

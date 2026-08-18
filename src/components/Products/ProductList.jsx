@@ -6,6 +6,12 @@ import { useAppContext } from '../../context/AppContext';
 
 export function ProductList({ products, onEdit, onDelete, onPrint }) {
   const { settings } = useAppContext();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [products]);
 
   if (!products || products.length === 0) {
     return (
@@ -14,13 +20,6 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
       </div>
     );
   }
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [products]);
 
   const totalPages = Math.ceil(products.length / itemsPerPage);
   const paginatedProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);

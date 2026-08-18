@@ -86,10 +86,17 @@ export function DispensingPage() {
   };
 
   const exportToCSV = () => {
-    let csvContent = "วันที่,ประเภท,HN,สินค้า,ไซส์,จำนวน,ผู้เบิก,หมายเหตุ\n";
+    let csvContent = "วัน/เวลาทำรายการ,ประเภท,HN,สินค้า,ไซส์,จำนวน,ผู้เบิก/ผู้รับ,หมายเหตุ\n";
     
     history.forEach(record => {
-      const date = record.dispensed_date ? new Date(record.dispensed_date).toLocaleString('th-TH') : '-';
+      const rawDate = record.dispensed_date || record.created_at;
+      let dateStr = '-';
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) {
+          dateStr = d.toLocaleString('th-TH');
+        }
+      }
       const type = record.type === 'IN' ? 'รับเข้า' : 'เบิกออก';
       const hn = record.hn || '-';
       const product = record.product_name || '-';
@@ -99,7 +106,7 @@ export function DispensingPage() {
       const note = record.note || '-';
       
       const escapeCsv = (str) => `"${String(str).replace(/"/g, '""')}"`;
-      csvContent += `${escapeCsv(date)},${escapeCsv(type)},${escapeCsv(hn)},${escapeCsv(product)},${escapeCsv(size)},${escapeCsv(quantity)},${escapeCsv(seller)},${escapeCsv(note)}\n`;
+      csvContent += `${escapeCsv(dateStr)},${escapeCsv(type)},${escapeCsv(hn)},${escapeCsv(product)},${escapeCsv(size)},${escapeCsv(quantity)},${escapeCsv(seller)},${escapeCsv(note)}\n`;
     });
 
     const bom = "\uFEFF";

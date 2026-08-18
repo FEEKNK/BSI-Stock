@@ -185,8 +185,8 @@ export function BarcodePage() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '32px', paddingTop: '40px' }}>
         <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>คุณต้องการทำอะไรวันนี้?</h1>
-          <p style={{ fontSize: '1.125rem', color: 'var(--text-secondary)', margin: 0 }}>กรุณาเลือกประเภทรายการก่อนเริ่มสแกนสินค้า</p>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>ทำรายการสินค้าคงคลัง</h1>
+          <p style={{ fontSize: '1.125rem', color: 'var(--text-secondary)', margin: 0 }}>กรุณาเลือกรูปแบบรายการเพื่อเริ่มการสแกนบาร์โค้ด</p>
         </div>
 
         <div style={{ display: 'flex', gap: '24px', width: '100%', maxWidth: '600px' }}>
