@@ -326,24 +326,49 @@ export function DashboardPage() {
                                   rowTotal += stock;
                                 }
 
+                                // Style cell based on status
+                                let cellBg = 'var(--bg-surface)';
+                                let textColor = 'var(--text-primary)';
+                                let fontWt = 600;
+
+                                if (stock === null) {
+                                  // Not applicable / no size
+                                  cellBg = 'var(--bg-main)';
+                                  textColor = 'var(--text-tertiary)';
+                                  fontWt = 400;
+                                } else if (stock === 0) {
+                                  // Out of stock
+                                  cellBg = 'rgba(239, 68, 68, 0.08)';
+                                  textColor = 'var(--danger)';
+                                  fontWt = 700;
+                                } else if (stock <= 5) {
+                                  // Low stock
+                                  cellBg = 'rgba(217, 119, 6, 0.08)';
+                                  textColor = '#b45309';
+                                  fontWt = 600;
+                                }
+
                                 return (
                                   <td 
                                     key={size} 
                                     style={{ 
                                       padding: '8px 4px', 
-                                      color: stock === 0 ? 'var(--danger)' : 'var(--text-primary)',
-                                      borderBottom: '1px solid var(--border)'
+                                      backgroundColor: cellBg,
+                                      borderBottom: '1px solid var(--border)',
+                                      borderRight: '1px solid rgba(0, 0, 0, 0.04)',
+                                      transition: 'background-color 0.15s'
                                     }}
                                   >
                                     {stock !== null ? (
                                       <span style={{ 
-                                        fontWeight: stock === 0 ? 700 : (stock > 0 ? 500 : 400),
-                                        color: stock === 0 ? 'var(--danger)' : (stock <= 5 ? '#d97706' : 'inherit')
+                                        fontWeight: fontWt,
+                                        color: textColor,
+                                        fontSize: '0.85rem'
                                       }}>
                                         {stock}
                                       </span>
                                     ) : (
-                                      <span style={{ color: 'var(--text-tertiary)', opacity: 0.4 }}>-</span>
+                                      <span style={{ color: 'var(--text-tertiary)', opacity: 0.35, fontSize: '0.75rem' }}>-</span>
                                     )}
                                   </td>
                                 );
