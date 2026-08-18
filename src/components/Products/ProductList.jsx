@@ -24,7 +24,7 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
   const totalPages = Math.ceil(products.length / itemsPerPage);
   const paginatedProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const getStockStatus = (product) => {
+  const getProductStockAnalysis = (product) => {
     const threshold = product.threshold !== undefined && product.threshold !== null && product.threshold !== ''
       ? Number(product.threshold) 
       : (Number(settings?.globalThreshold) || 30);
@@ -32,14 +32,38 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
     const sizeKeys = product.sizes ? Object.keys(product.sizes) : [];
     
     let currentStock = 0;
-    let outOfStockSizes = 0;
-    let lowStockSizes = 0;
+    const outOfStockSizes = [];
+    const lowStockSizes = [];
+    const normalSizes = [];
+    const allSizeList = [];
 
     if (sizeKeys.length === 0) {
       currentStock = Number(product.totalStock ?? product.total_stock ?? 0);
-      if (currentStock === 0) return { label: 'หมดสต็อก', type: 'danger' };
-      if (currentStock <= threshold) return { label: 'ใกล้หมด', type: 'warning' };
-      return { label: 'ปกติ', type: 'success' };
+      if (currentStock === 0) {
+        return {
+          type: 'danger',
+          summary: 'หมดสต็อก',
+          problemCount: 0,
+          allSizeList: [],
+          tooltip: `สต็อก ${product.name}: หมดสต็อก (0 ชิ้น)`
+        };
+      }
+      if (currentStock <= threshold) {
+        return {
+          type: 'warning',
+          summary: `ใกล้หมด: ${currentStock} ชิ้น`,
+          problemCount: 1,
+          allSizeList: [{ size: 'ค่าเริ่มต้น', stock: currentStock, status: 'low' }],
+          tooltip: `สต็อก ${product.name}: เหลือ ${currentStock} ชิ้น (ใกล้หมด)`
+        };
+      }
+      return {
+        type: 'success',
+        summary: 'ปกติ',
+        problemCount: 0,
+        allSizeList: [{ size: 'ค่าเริ่มต้น', stock: currentStock, status: 'normal' }],
+        tooltip: `สต็อก ${product.name}: ${currentStock} ชิ้น (ปกติ)`
+      };
     }
 
     sizeKeys.forEach(size => {
@@ -48,36 +72,90 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
         ? (typeof sizeData === 'object' ? Number(sizeData?.stock ?? 0) : Number(sizeData))
         : 0;
       currentStock += stock;
+
       if (stock === 0) {
-        outOfStockSizes++;
+        outOfStockSizes.push({ size, stock });
+        allSizeList.push({ size, stock, status: 'out' });
       } else if (stock <= threshold) {
-        lowStockSizes++;
+        lowStockSizes.push({ size, stock });
+        allSizeList.push({ size, stock, status: 'low' });
+      } else {
+        normalSizes.push({ size, stock });
+        allSizeList.push({ size, stock, status: 'normal' });
       }
     });
 
+    const problemCount = outOfStockSizes.length + lowStockSizes.length;
+
+    // Tooltip breakdown
+    const tooltipLines = [`สต็อก ${product.name} (รวม ${currentStock} ชิ้น):`];
+    allSizeList.forEach(s => {
+      const statusDesc = s.stock === 0 ? 'หมดสต็อก' : (s.stock <= threshold ? 'ใกล้หมด' : 'ปกติ');
+      tooltipLines.push(`• ไซส์ ${s.size}: ${s.stock} ชิ้น (${statusDesc})`);
+    });
+    const tooltip = tooltipLines.join('\n');
+
     if (currentStock === 0) {
-      return { label: 'หมดสต็อก', type: 'danger' };
-    }
-
-    if (outOfStockSizes > 0) {
-      return { 
-        label: `ปกติ (${outOfStockSizes} ไซส์หมด)`, 
-        type: 'warning'
+      return {
+        type: 'danger',
+        summary: 'หมดสต็อก',
+        problemCount,
+        allSizeList,
+        tooltip
       };
     }
 
-    if (lowStockSizes > 0) {
-      return { 
-        label: `ปกติ (${lowStockSizes} ไซส์ใกล้หมด)`, 
-        type: 'warning'
+    if (problemCount === 0) {
+      return {
+        type: 'success',
+        summary: 'ปกติ',
+        problemCount: 0,
+        allSizeList,
+        tooltip
       };
     }
 
-    if (currentStock <= threshold) {
-      return { label: 'ใกล้หมด', type: 'warning' };
+    // 1-2 Problem Sizes: Show concise specific size details
+    let summary = '';
+    let badgeType = outOfStockSizes.length > 0 ? 'danger' : 'warning';
+
+    if (problemCount === 1) {
+      if (outOfStockSizes.length === 1) {
+        summary = `⚠️ หมดสต็อก: ไซส์ ${outOfStockSizes[0].size} (0)`;
+        badgeType = 'danger';
+      } else {
+        summary = `⚠️ ใกล้หมด: ไซส์ ${lowStockSizes[0].size} (${lowStockSizes[0].stock})`;
+        badgeType = 'warning';
+      }
+    } else if (problemCount === 2) {
+      const parts = [];
+      if (outOfStockSizes.length > 0) {
+        parts.push(`หมด: ${outOfStockSizes.map(s => s.size).join(',')}`);
+      }
+      if (lowStockSizes.length > 0) {
+        parts.push(`ใกล้หมด: ${lowStockSizes.map(s => `${s.size}(${s.stock})`).join(', ')}`);
+      }
+      summary = `⚠️ ${parts.join(' | ')}`;
+      badgeType = outOfStockSizes.length > 0 ? 'danger' : 'warning';
+    } else {
+      // 3 or more problem sizes: Show clean summary count
+      if (outOfStockSizes.length > 0 && lowStockSizes.length > 0) {
+        summary = `⚠️ ${outOfStockSizes.length} ไซส์หมด, ${lowStockSizes.length} ไซส์ใกล้หมด`;
+      } else if (outOfStockSizes.length > 0) {
+        summary = `⚠️ หมดสต็อก ${outOfStockSizes.length} ไซส์`;
+      } else {
+        summary = `⚠️ ใกล้หมด ${lowStockSizes.length} ไซส์`;
+      }
+      badgeType = outOfStockSizes.length > 0 ? 'danger' : 'warning';
     }
 
-    return { label: 'ปกติ', type: 'success' };
+    return {
+      type: badgeType,
+      summary,
+      problemCount,
+      allSizeList,
+      tooltip
+    };
   };
 
   return (
@@ -94,13 +172,13 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
             <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>ชื่อสินค้า</th>
             <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>หมวดหมู่</th>
             <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>สต็อกรวม</th>
-            <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>สถานะ</th>
+            <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem', minWidth: '220px' }}>สถานะ</th>
             <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'right' }}>จัดการ</th>
           </tr>
         </thead>
         <tbody>
           {paginatedProducts.map(product => {
-            const status = getStockStatus(product);
+            const status = getProductStockAnalysis(product);
             return (
               <tr key={product.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '16px' }}>
@@ -126,8 +204,53 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
                 <td style={{ padding: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>{
                   product.totalStock || product.total_stock || (product.sizes ? Object.values(product.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0)
                 }</td>
-                <td style={{ padding: '16px' }}>
-                  <Badge type={status.type}>{status.label}</Badge>
+                <td style={{ padding: '12px 16px', verticalAlign: 'middle' }} title={status.tooltip}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                    <Badge type={status.type}>{status.summary}</Badge>
+
+                    {/* If 3 or more problem sizes: Render compact Size Pills */}
+                    {status.problemCount >= 3 && status.allSizeList.length > 0 && (
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
+                        {status.allSizeList.map(s => {
+                          let pillBg = 'var(--bg-main)';
+                          let pillColor = 'var(--text-secondary)';
+                          let pillBorder = 'var(--border)';
+                          let fontWt = 400;
+
+                          if (s.status === 'out') {
+                            pillBg = '#fee2e2';
+                            pillColor = '#dc2626';
+                            pillBorder = '#fca5a5';
+                            fontWt = 700;
+                          } else if (s.status === 'low') {
+                            pillBg = '#fef3c7';
+                            pillColor = '#b45309';
+                            pillBorder = '#fde68a';
+                            fontWt = 700;
+                          }
+
+                          return (
+                            <span
+                              key={s.size}
+                              style={{
+                                fontSize: '0.7rem',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                backgroundColor: pillBg,
+                                color: pillColor,
+                                border: `1px solid ${pillBorder}`,
+                                fontWeight: fontWt,
+                                whiteSpace: 'nowrap'
+                              }}
+                              title={`ไซส์ ${s.size}: ${s.stock} ชิ้น`}
+                            >
+                              {s.size}:{s.stock}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td style={{ padding: '16px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
