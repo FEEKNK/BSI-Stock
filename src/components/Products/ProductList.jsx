@@ -27,8 +27,12 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
 
   const getStockStatus = (product) => {
     const threshold = product.threshold || settings.globalThreshold;
-    if (product.totalStock === 0) return { label: 'หมด', type: 'danger' };
-    if (product.totalStock <= threshold) return { label: 'ใกล้หมด', type: 'warning' };
+    const currentStock = product.totalStock !== undefined ? product.totalStock : 
+                         (product.total_stock !== undefined ? product.total_stock : 
+                         (product.sizes ? Object.values(product.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0));
+                         
+    if (currentStock === 0) return { label: 'หมด', type: 'danger' };
+    if (currentStock <= threshold) return { label: 'ใกล้หมด', type: 'warning' };
     return { label: 'ปกติ', type: 'success' };
   };
 
@@ -45,7 +49,6 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
           <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-main)' }}>
             <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>ชื่อสินค้า</th>
             <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>หมวดหมู่</th>
-            <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>ราคา</th>
             <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>สต็อกรวม</th>
             <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>สถานะ</th>
             <th style={{ padding: '16px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'right' }}>จัดการ</th>
@@ -76,7 +79,6 @@ export function ProductList({ products, onEdit, onDelete, onPrint }) {
                   </div>
                 </td>
                 <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>{product.category}</td>
-                <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>{product.price ? formatCurrency(product.price) : '-'}</td>
                 <td style={{ padding: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>{
                   product.totalStock || product.total_stock || (product.sizes ? Object.values(product.sizes).reduce((sum, d) => sum + (Number(typeof d === 'object' ? d?.stock : d) || 0), 0) : 0)
                 }</td>

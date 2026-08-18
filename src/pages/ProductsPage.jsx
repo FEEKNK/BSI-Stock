@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Camera } from 'lucide-react';
+import { Plus, Search, Filter, Camera, Printer } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { ProductList } from '../components/Products/ProductList';
 import { ProductForm } from '../components/Products/ProductForm';
@@ -7,6 +7,7 @@ import { Modal } from '../components/common/Modal';
 import { EmptyState } from '../components/common/EmptyState';
 import { BarcodeScanner } from '../components/Barcode/BarcodeScanner';
 import { BarcodeGenerator } from '../components/Barcode/BarcodeGenerator';
+import { PrintMasterSheetModal } from '../components/Products/PrintMasterSheetModal';
 
 export function ProductsPage() {
   const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, filterProducts } = useProducts();
@@ -17,6 +18,7 @@ export function ProductsPage() {
   const [scannerManualInput, setScannerManualInput] = useState('');
   const [productToDelete, setProductToDelete] = useState(null);
   const [productToPrint, setProductToPrint] = useState(null);
+  const [isPrintMasterOpen, setIsPrintMasterOpen] = useState(false);
   
   const [filters, setFilters] = useState({
     search: '',
@@ -91,10 +93,28 @@ export function ProductsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>จัดการสินค้า</h1>
+      <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>จัดการสินค้า</h1>
         
         <div style={{ display: 'flex', gap: '12px' }}>
+          <button
+            onClick={() => setIsPrintMasterOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 18px',
+              backgroundColor: 'var(--warning-bg)',
+              border: '1px solid var(--warning)',
+              color: 'var(--warning)',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            <Printer size={18} /> พิมพ์แผ่นบาร์โค้ด
+          </button>
+
           <button
             onClick={() => setIsScannerOpen(true)}
             style={{
@@ -346,28 +366,36 @@ export function ProductsPage() {
             </button>
           </div>
         </div>
-
-        {/* Hidden Print Area */}
-        <div id="print-area" style={{ display: 'none' }}>
-          {productToPrint && (
-            <div>
-              <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>บาร์โค้ดสินค้า: {productToPrint.name}</h2>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', justifyContent: 'center' }}>
-                {Object.entries(productToPrint.sizes || {}).map(([size, data]) => {
-                  const barcode = typeof data === 'object' ? data.barcode : '';
-                  if (!barcode) return null;
-                  return (
-                    <div key={size} style={{ textAlign: 'center', breakInside: 'avoid', border: '1px dashed #ccc', padding: '15px' }}>
-                      <h4 style={{ margin: '0 0 10px 0' }}>{productToPrint.name} - ไซส์ {size}</h4>
-                      <BarcodeGenerator value={barcode} />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
       </Modal>
+      </div>
+
+      {/* Hidden Print Area for Individual Product */}
+      <div id="print-area" style={{ display: 'none' }}>
+        {productToPrint && (
+          <div>
+            <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>บาร์โค้ดสินค้า: {productToPrint.name}</h2>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'center' }}>
+              {Object.entries(productToPrint.sizes || {}).map(([size, data]) => {
+                const barcode = typeof data === 'object' ? data.barcode : '';
+                if (!barcode) return null;
+                return (
+                  <div key={size} style={{ textAlign: 'center', breakInside: 'avoid', border: '1px dashed #ccc', padding: '10px', minWidth: '200px' }}>
+                    <h4 style={{ margin: '0 0 10px 0' }}>{productToPrint.name} - ไซส์ {size}</h4>
+                    <BarcodeGenerator value={barcode} hideWrapper={true} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Master Barcode Sheet Modal */}
+      <PrintMasterSheetModal
+        isOpen={isPrintMasterOpen}
+        onClose={() => setIsPrintMasterOpen(false)}
+        products={products}
+      />
     </div>
   );
 }

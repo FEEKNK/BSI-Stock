@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Barcode, Settings, Tags } from 'lucide-react';
+import { LayoutDashboard, Package, Barcode, Settings, Tags, ClipboardList, ScanLine } from 'lucide-react';
 import logoSvg from '../../assets/logo.svg';
 import './Sidebar.css';
 
@@ -8,7 +8,8 @@ const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'แดชบอร์ด' },
   { path: '/products', icon: Package, label: 'จัดการสินค้า' },
   { path: '/categories', icon: Tags, label: 'หมวดหมู่' },
-  { path: '/barcode', icon: Barcode, label: 'สแกนบาร์โค้ด' },
+  { path: '/barcode', icon: ScanLine, label: 'สแกนเบิก/รับ' },
+  { path: '/history', icon: ClipboardList, label: 'ประวัติคลังสินค้า' },
   { path: '/settings', icon: Settings, label: 'การตั้งค่า' },
 ];
 

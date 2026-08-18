@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import JsBarcode from 'jsbarcode';
 import { Download } from 'lucide-react';
 
-export function BarcodeGenerator({ value }) {
+export function BarcodeGenerator({ value, hideWrapper = false }) {
   const barcodeRef = useRef(null);
   
   React.useEffect(() => {
@@ -49,6 +49,14 @@ export function BarcodeGenerator({ value }) {
   };
 
   if (!value) return null;
+
+  if (hideWrapper) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <svg ref={barcodeRef}></svg>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>

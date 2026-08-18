@@ -10,6 +10,7 @@ import { ProductsPage } from './pages/ProductsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { BarcodePage } from './pages/BarcodePage';
 import { SettingsPage } from './pages/SettingsPage';
+import { DispensingPage } from './pages/DispensingPage';
 
 import './App.css';
 
@@ -27,9 +28,11 @@ function App() {
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/categories" element={<CategoriesPage />} />
                 <Route path="/barcode" element={<BarcodePage />} />
+                <Route path="/history" element={<DispensingPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </main>
+
           </div>
         </div>
       </BrowserRouter>

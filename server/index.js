@@ -117,6 +117,276 @@ app.patch('/api/products/:id/stock', async (req, res) => {
   }
 });
 
+// --- Dispensing History ---
+
+// Get all dispensing history
+app.get('/api/dispensing-history', async (req, res) => {
+  try {
+    const { hn, product_name, seller, start_date, end_date } = req.query;
+    let baseQuery = 'SELECT * FROM dispensing_history WHERE 1=1';
+    const values = [];
+    let paramIndex = 1;
+
+    if (hn) {
+      baseQuery += ` AND hn ILIKE $${paramIndex++}`;
+      values.push(`%${hn}%`);
+    }
+    if (product_name) {
+      baseQuery += ` AND product_name ILIKE $${paramIndex++}`;
+      values.push(`%${product_name}%`);
+    }
+    if (seller) {
+      baseQuery += ` AND seller ILIKE $${paramIndex++}`;
+      values.push(`%${seller}%`);
+    }
+    if (start_date) {
+      baseQuery += ` AND DATE(dispensed_date) >= $${paramIndex++}`;
+      values.push(start_date);
+    }
+    if (end_date) {
+      baseQuery += ` AND DATE(dispensed_date) <= $${paramIndex++}`;
+      values.push(end_date);
+    }
+
+    baseQuery += ' ORDER BY dispensed_date DESC, created_at DESC';
+
+    const { rows } = await query(baseQuery, values);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch dispensing history' });
+  }
+});
+
+// Create dispensing record (and deduct stock)
+app.post('/api/dispensing-history', async (req, res) => {
+  try {
+    const { product_id, product_name, size, quantity, dispensed_date, hn, seller, note } = req.body;
+    
+    await query('BEGIN');
+
+    // 1. Insert record
+    const q = `
+      INSERT INTO dispensing_history (product_id, product_name, size, quantity, dispensed_date, hn, seller, note)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `;
+    const values = [product_id, product_name, size, quantity, dispensed_date, hn, seller, note];
+    const { rows } = await query(q, values);
+    const newRecord = rows[0];
+
+    // 2. Deduct stock
+    if (product_id) {
+      const { rows: prodRows } = await query('SELECT sizes, total_stock FROM products WHERE id = $1', [product_id]);
+      if (prodRows.length > 0) {
+        const prod = prodRows[0];
+        let sizes = prod.sizes || {};
+        let totalStock = prod.total_stock || 0;
+
+        if (sizes[size]) {
+          let oldStock = 0;
+          if (typeof sizes[size] === 'object') {
+            oldStock = Number(sizes[size].stock) || 0;
+            sizes[size].stock = Math.max(0, oldStock - quantity);
+          } else {
+            oldStock = Number(sizes[size]) || 0;
+            sizes[size] = Math.max(0, oldStock - quantity);
+          }
+          
+          totalStock = Object.values(sizes).reduce((sum, sizeData) => {
+            const s = typeof sizeData === 'number' || typeof sizeData === 'string' ? sizeData : sizeData?.stock;
+            return sum + (Number(s) || 0);
+          }, 0);
+
+          await query('UPDATE products SET sizes = $1, total_stock = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [JSON.stringify(sizes), totalStock, product_id]);
+        }
+      }
+    }
+
+    await query('COMMIT');
+    res.status(201).json(newRecord);
+  } catch (err) {
+    await query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create dispensing record' });
+  }
+});
+
+// Bulk create dispensing records (and update stock)
+app.post('/api/dispensing-history/bulk', async (req, res) => {
+  try {
+    const { mode, dispensed_date, hn, seller, note, items } = req.body;
+    
+    await query('BEGIN');
+
+    const createdRecords = [];
+
+    for (const item of items) {
+      const { product_id, product_name, size, quantity } = item;
+
+      // 1. Insert record
+      const q = `
+        INSERT INTO dispensing_history (product_id, product_name, size, quantity, dispensed_date, hn, seller, note, type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING *
+      `;
+      const values = [product_id, product_name, size, quantity, dispensed_date, hn, seller, note, mode];
+      const { rows } = await query(q, values);
+      createdRecords.push(rows[0]);
+
+      // 2. Update stock
+      if (product_id) {
+        const { rows: prodRows } = await query('SELECT sizes, total_stock FROM products WHERE id = $1', [product_id]);
+        if (prodRows.length > 0) {
+          const prod = prodRows[0];
+          let sizes = prod.sizes || {};
+          let totalStock = prod.total_stock || 0;
+
+          if (sizes[size] !== undefined) {
+            let oldStock = 0;
+            if (typeof sizes[size] === 'object') {
+              oldStock = Number(sizes[size].stock) || 0;
+              sizes[size].stock = mode === 'IN' ? oldStock + quantity : Math.max(0, oldStock - quantity);
+            } else {
+              oldStock = Number(sizes[size]) || 0;
+              sizes[size] = mode === 'IN' ? oldStock + quantity : Math.max(0, oldStock - quantity);
+            }
+            
+            totalStock = Object.values(sizes).reduce((sum, sizeData) => {
+              const s = typeof sizeData === 'number' || typeof sizeData === 'string' ? sizeData : sizeData?.stock;
+              return sum + (Number(s) || 0);
+            }, 0);
+
+            await query('UPDATE products SET sizes = $1, total_stock = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [JSON.stringify(sizes), totalStock, product_id]);
+          }
+        }
+      }
+    }
+
+    await query('COMMIT');
+    res.status(201).json({ success: true, count: createdRecords.length, records: createdRecords });
+  } catch (err) {
+    await query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to process bulk dispensing' });
+  }
+});
+
+
+// Update dispensing record
+app.put('/api/dispensing-history/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { product_id, product_name, size, quantity, dispensed_date, hn, seller, note } = req.body;
+    
+    await query('BEGIN');
+
+    // Get old record to handle stock adjustment
+    const { rows: oldRows } = await query('SELECT * FROM dispensing_history WHERE id = $1', [id]);
+    if (oldRows.length === 0) {
+      await query('ROLLBACK');
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    const oldRecord = oldRows[0];
+
+    // Revert old stock if product/size changed or quantity changed
+    // For simplicity, we can revert old stock, then apply new stock
+    if (oldRecord.product_id) {
+      const { rows: pRows } = await query('SELECT sizes, total_stock FROM products WHERE id = $1', [oldRecord.product_id]);
+      if (pRows.length > 0) {
+        const prod = pRows[0];
+        let sizes = prod.sizes || {};
+        if (sizes[oldRecord.size]) {
+          if (typeof sizes[oldRecord.size] === 'object') {
+            sizes[oldRecord.size].stock = (Number(sizes[oldRecord.size].stock) || 0) + oldRecord.quantity;
+          } else {
+            sizes[oldRecord.size] = (Number(sizes[oldRecord.size]) || 0) + oldRecord.quantity;
+          }
+          let totalStock = Object.values(sizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s.stock : s) || 0), 0);
+          await query('UPDATE products SET sizes = $1, total_stock = $2 WHERE id = $3', [JSON.stringify(sizes), totalStock, oldRecord.product_id]);
+        }
+      }
+    }
+
+    // Apply new stock
+    if (product_id) {
+      const { rows: pRows } = await query('SELECT sizes, total_stock FROM products WHERE id = $1', [product_id]);
+      if (pRows.length > 0) {
+        const prod = pRows[0];
+        let sizes = prod.sizes || {};
+        if (sizes[size]) {
+          if (typeof sizes[size] === 'object') {
+            sizes[size].stock = Math.max(0, (Number(sizes[size].stock) || 0) - quantity);
+          } else {
+            sizes[size] = Math.max(0, (Number(sizes[size]) || 0) - quantity);
+          }
+          let totalStock = Object.values(sizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s.stock : s) || 0), 0);
+          await query('UPDATE products SET sizes = $1, total_stock = $2 WHERE id = $3', [JSON.stringify(sizes), totalStock, product_id]);
+        }
+      }
+    }
+
+    const q = `
+      UPDATE dispensing_history 
+      SET product_id = $1, product_name = $2, size = $3, quantity = $4, dispensed_date = $5, hn = $6, seller = $7, note = $8
+      WHERE id = $9
+      RETURNING *
+    `;
+    const values = [product_id, product_name, size, quantity, dispensed_date, hn, seller, note, id];
+    const { rows } = await query(q, values);
+    
+    await query('COMMIT');
+    res.json(rows[0]);
+  } catch (err) {
+    await query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update dispensing record' });
+  }
+});
+
+// Delete dispensing record
+app.delete('/api/dispensing-history/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await query('BEGIN');
+    
+    const { rows: oldRows } = await query('SELECT * FROM dispensing_history WHERE id = $1', [id]);
+    if (oldRows.length === 0) {
+      await query('ROLLBACK');
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    const oldRecord = oldRows[0];
+
+    // Revert stock
+    if (oldRecord.product_id) {
+      const { rows: pRows } = await query('SELECT sizes, total_stock FROM products WHERE id = $1', [oldRecord.product_id]);
+      if (pRows.length > 0) {
+        const prod = pRows[0];
+        let sizes = prod.sizes || {};
+        if (sizes[oldRecord.size]) {
+          if (typeof sizes[oldRecord.size] === 'object') {
+            sizes[oldRecord.size].stock = (Number(sizes[oldRecord.size].stock) || 0) + oldRecord.quantity;
+          } else {
+            sizes[oldRecord.size] = (Number(sizes[oldRecord.size]) || 0) + oldRecord.quantity;
+          }
+          let totalStock = Object.values(sizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s.stock : s) || 0), 0);
+          await query('UPDATE products SET sizes = $1, total_stock = $2 WHERE id = $3', [JSON.stringify(sizes), totalStock, oldRecord.product_id]);
+        }
+      }
+    }
+
+    await query('DELETE FROM dispensing_history WHERE id = $1', [id]);
+    
+    await query('COMMIT');
+    res.json({ message: 'Record deleted successfully' });
+  } catch (err) {
+    await query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete dispensing record' });
+  }
+});
+
 // Get all category codes
 app.get('/api/category-codes', async (req, res) => {
   try {
@@ -218,6 +488,14 @@ const initDb = async () => {
   try {
     const sql = fs.readFileSync(path.join(__dirname, 'init.sql')).toString();
     await query(sql);
+    
+    // Migration: add type column if not exists
+    try {
+      await query(`ALTER TABLE dispensing_history ADD COLUMN IF NOT EXISTS type VARCHAR(10) DEFAULT 'OUT'`);
+    } catch (migErr) {
+      console.warn('Migration warning:', migErr.message);
+    }
+
     console.log('Database tables initialized');
   } catch (err) {
     console.error('Error initializing database:', err);
