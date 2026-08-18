@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Package, AlertTriangle, AlertOctagon, TrendingUp } from 'lucide-react';
+import { Package, AlertTriangle, AlertOctagon, TrendingUp, Download } from 'lucide-react';
 import { useDashboard } from '../hooks/useDashboard';
 import { useAppContext } from '../context/AppContext';
 import { StatsCard } from '../components/Dashboard/StatsCard';
@@ -56,6 +56,39 @@ export function DashboardPage() {
   }, [products]);
 
   const [activeCategoryTab, setActiveCategoryTab] = useState('ทั้งหมด');
+
+  const exportToCSV = () => {
+    let csvContent = "หมวดหมู่,ชื่อสินค้า,ไซส์,สต็อกคงเหลือ\n";
+    
+    groupedStockMatrix.forEach(group => {
+      group.products.forEach(p => {
+        if (!group.sizes || group.sizes.length === 0) {
+          csvContent += `"${group.category}","${p.name}","-","0"\n`;
+        } else {
+          group.sizes.forEach(size => {
+            const sizeData = p.sizes?.[size];
+            const stock = sizeData
+              ? (typeof sizeData === 'object' ? sizeData.stock : Number(sizeData))
+              : null;
+            if (stock !== null) {
+              csvContent += `"${group.category}","${p.name}","${size}","${stock}"\n`;
+            }
+          });
+        }
+      });
+    });
+
+    // Add BOM for Excel UTF-8 compatibility
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `stock_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -145,9 +178,29 @@ export function DashboardPage() {
         boxShadow: 'var(--shadow-sm)'
       }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            📊 ตารางสต็อกแยกตามไซส์
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              📊 ตารางสต็อกแยกตามไซส์
+            </h3>
+            <button
+              onClick={exportToCSV}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '6px 12px',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: 'var(--shadow-sm)'
+              }}
+              title="ดาวน์โหลดเป็นไฟล์ CSV"
+            >
+              <Download size={14} /> Export CSV
+            </button>
+          </div>
           
           {/* Category Tabs */}
           {groupedStockMatrix.length > 0 && (
@@ -222,16 +275,16 @@ export function DashboardPage() {
                         สินค้า \ ไซส์
                       </th>
                       {group.sizes.length === 0 ? (
-                        <th style={{ padding: '12px 16px', border: '1px solid var(--border)', borderBottom: '2px solid var(--primary)', color: 'var(--text-tertiary)' }}>ไม่มีข้อมูลไซส์</th>
+                        <th style={{ padding: '8px 12px', border: '1px solid var(--border)', borderBottom: '2px solid var(--primary)', color: 'var(--text-tertiary)' }}>ไม่มีข้อมูลไซส์</th>
                       ) : (
                         group.sizes.map(size => (
                           <th key={size} style={{
-                            padding: '12px 16px', fontWeight: 600,
+                            padding: '8px 4px', fontWeight: 600, fontSize: '0.8rem',
                             color: 'var(--primary)', border: '1px solid var(--border)',
-                            borderBottom: '2px solid var(--primary)', minWidth: '70px',
+                            borderBottom: '2px solid var(--primary)', minWidth: '45px',
                             whiteSpace: 'nowrap'
                           }}>
-                            {size}
+                            {size === 'free size' ? 'Free' : size}
                           </th>
                         ))
                       )}
@@ -259,7 +312,7 @@ export function DashboardPage() {
                             
                             return (
                               <td key={size} style={{
-                                padding: '10px 16px',
+                                padding: '8px 4px',
                                 fontWeight: stock !== null ? 600 : 400,
                                 backgroundColor: stock === null ? '#94a3b8' : 'transparent',
                                 color: stock === null ? 'transparent' 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, Download } from 'lucide-react';
 import { useDispensing } from '../hooks/useDispensing';
 import { DispensingList } from '../components/Dispensing/DispensingList';
 import { DispensingForm } from '../components/Dispensing/DispensingForm';
@@ -85,10 +85,55 @@ export function DispensingPage() {
     fontSize: '0.875rem'
   };
 
+  const exportToCSV = () => {
+    let csvContent = "วันที่,ประเภท,HN,สินค้า,ไซส์,จำนวน,ผู้เบิก,หมายเหตุ\n";
+    
+    history.forEach(record => {
+      const date = record.dispensed_date ? new Date(record.dispensed_date).toLocaleString('th-TH') : '-';
+      const type = record.type === 'IN' ? 'รับเข้า' : 'เบิกออก';
+      const hn = record.hn || '-';
+      const product = record.product_name || '-';
+      const size = record.size || '-';
+      const quantity = record.quantity || 0;
+      const seller = record.seller || '-';
+      const note = record.note || '-';
+      
+      const escapeCsv = (str) => `"${String(str).replace(/"/g, '""')}"`;
+      csvContent += `${escapeCsv(date)},${escapeCsv(type)},${escapeCsv(hn)},${escapeCsv(product)},${escapeCsv(size)},${escapeCsv(quantity)},${escapeCsv(seller)},${escapeCsv(note)}\n`;
+    });
+
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `history_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>ประวัติคลังสินค้า</h1>
+        <button
+          onClick={exportToCSV}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '8px 16px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+            borderRadius: 'var(--radius-md)',
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: 'var(--shadow-sm)'
+          }}
+          title="ดาวน์โหลดเป็นไฟล์ CSV"
+        >
+          <Download size={18} /> Export CSV
+        </button>
       </div>
 
       <div style={{ 
