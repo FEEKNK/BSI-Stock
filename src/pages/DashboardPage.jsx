@@ -327,25 +327,25 @@ export function DashboardPage() {
                                 }
 
                                 // Style cell based on status
-                                let cellBg = 'var(--bg-surface)';
+                                let cellBg = '#ffffff';
                                 let textColor = 'var(--text-primary)';
-                                let fontWt = 600;
+                                let fontWt = 700;
 
                                 if (stock === null) {
-                                  // Not applicable / no size
-                                  cellBg = 'var(--bg-main)';
-                                  textColor = 'var(--text-tertiary)';
+                                  // Darker gray shade for empty/not applicable cells
+                                  cellBg = '#e2e8f0';
+                                  textColor = '#94a3b8';
                                   fontWt = 400;
                                 } else if (stock === 0) {
                                   // Out of stock
-                                  cellBg = 'rgba(239, 68, 68, 0.08)';
+                                  cellBg = '#fee2e2';
                                   textColor = 'var(--danger)';
                                   fontWt = 700;
                                 } else if (stock <= 5) {
                                   // Low stock
-                                  cellBg = 'rgba(217, 119, 6, 0.08)';
-                                  textColor = '#b45309';
-                                  fontWt = 600;
+                                  cellBg = '#fef3c7';
+                                  textColor = '#d97706';
+                                  fontWt = 700;
                                 }
 
                                 return (
@@ -355,7 +355,7 @@ export function DashboardPage() {
                                       padding: '8px 4px', 
                                       backgroundColor: cellBg,
                                       borderBottom: '1px solid var(--border)',
-                                      borderRight: '1px solid rgba(0, 0, 0, 0.04)',
+                                      borderRight: '1px solid var(--border)',
                                       transition: 'background-color 0.15s'
                                     }}
                                   >
@@ -363,12 +363,12 @@ export function DashboardPage() {
                                       <span style={{ 
                                         fontWeight: fontWt,
                                         color: textColor,
-                                        fontSize: '0.85rem'
+                                        fontSize: '0.875rem'
                                       }}>
                                         {stock}
                                       </span>
                                     ) : (
-                                      <span style={{ color: 'var(--text-tertiary)', opacity: 0.35, fontSize: '0.75rem' }}>-</span>
+                                      <span style={{ color: '#94a3b8', fontWeight: 500, fontSize: '0.8rem' }}>-</span>
                                     )}
                                   </td>
                                 );
