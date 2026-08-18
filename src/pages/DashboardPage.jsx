@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Package, AlertTriangle, AlertOctagon, TrendingUp, FileSpreadsheet } from 'lucide-react';
+import { Package, AlertTriangle, AlertOctagon, TrendingUp, FileSpreadsheet, Table2, Filter } from 'lucide-react';
 import { useDashboard } from '../hooks/useDashboard';
 import { useAppContext } from '../context/AppContext';
 import { StatsCard } from '../components/Dashboard/StatsCard';
 import { StockChart } from '../components/Dashboard/StockChart';
 import { Badge } from '../components/common/Badge';
-import { exportStockMatrix } from '../utils/exportUtils';
+import { exportStockReportToExcel } from '../utils/excel';
 
 export function DashboardPage() {
   const { stats, lowStockItems } = useDashboard();
@@ -57,6 +57,10 @@ export function DashboardPage() {
   }, [products]);
 
   const [activeCategoryTab, setActiveCategoryTab] = useState('ทั้งหมด');
+
+  const handleExportExcel = () => {
+    exportStockReportToExcel(groupedStockMatrix, products);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -147,11 +151,12 @@ export function DashboardPage() {
       }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              📊 ตารางสต็อกแยกตามไซส์
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Table2 size={18} color="var(--primary)" />
+              ตารางสต็อกแยกตามไซส์
             </h3>
             <button
-              onClick={() => exportStockMatrix(groupedStockMatrix, 'xlsx')}
+              onClick={handleExportExcel}
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
                 padding: '6px 12px',
@@ -164,54 +169,47 @@ export function DashboardPage() {
                 cursor: 'pointer',
                 boxShadow: '0 1px 3px rgba(16, 124, 65, 0.2)'
               }}
-              title="ดาวน์โหลดเป็นไฟล์ Excel (.xlsx) สวยงาม คอลัมน์พอดี"
+              title="ดาวน์โหลดรายงานสต็อกเป็นไฟล์ Excel (.xlsx) สวยงาม คอลัมน์พอดี"
             >
               <FileSpreadsheet size={14} /> Export Excel
             </button>
           </div>
           
-          {/* Category Tabs */}
+          {/* Category Filter Dropdown */}
           {groupedStockMatrix.length > 0 && (
-            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-              <button
-                onClick={() => setActiveCategoryTab('ทั้งหมด')}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: '20px',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  border: '1px solid',
-                  backgroundColor: activeCategoryTab === 'ทั้งหมด' ? 'var(--primary)' : 'transparent',
-                  color: activeCategoryTab === 'ทั้งหมด' ? '#ffffff' : 'var(--text-secondary)',
-                  borderColor: activeCategoryTab === 'ทั้งหมด' ? 'var(--primary)' : 'var(--border)',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.2s'
-                }}
-              >
-                ทั้งหมด
-              </button>
-              {groupedStockMatrix.map(group => (
-                <button
-                  key={group.category}
-                  onClick={() => setActiveCategoryTab(group.category)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ position: 'relative', minWidth: '200px' }}>
+                <Filter size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                <select
+                  value={activeCategoryTab}
+                  onChange={(e) => setActiveCategoryTab(e.target.value)}
                   style={{
-                    padding: '6px 16px',
-                    borderRadius: '20px',
+                    width: '100%',
+                    padding: '7px 32px 7px 36px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
                     fontSize: '0.875rem',
                     fontWeight: 500,
-                    border: '1px solid',
-                    backgroundColor: activeCategoryTab === group.category ? 'var(--primary)' : 'transparent',
-                    color: activeCategoryTab === group.category ? '#ffffff' : 'var(--text-secondary)',
-                    borderColor: activeCategoryTab === group.category ? 'var(--primary)' : 'var(--border)',
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.2s'
+                    outline: 'none',
+                    appearance: 'none',
+                    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 10px center',
+                    backgroundSize: '16px',
+                    boxShadow: 'var(--shadow-sm)'
                   }}
                 >
-                  {group.category}
-                </button>
-              ))}
+                  <option value="ทั้งหมด">ทุกหมวดหมู่ (ทั้งหมด)</option>
+                  {groupedStockMatrix.map(group => (
+                    <option key={group.category} value={group.category}>
+                      {group.category}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
         </div>
@@ -225,81 +223,85 @@ export function DashboardPage() {
             {groupedStockMatrix
               .filter(group => activeCategoryTab === 'ทั้งหมด' || group.category === activeCategoryTab)
               .map(group => (
-              <div key={group.category} style={{ overflowX: 'auto' }}>
-                {activeCategoryTab === 'ทั้งหมด' && (
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', fontWeight: 600, color: 'var(--primary)' }}>
-                    หมวดหมู่: {group.category}
-                  </h4>
-                )}
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '0.875rem' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: 'var(--bg-main)' }}>
-                      <th style={{
-                        padding: '12px 16px', textAlign: 'center', fontWeight: 700,
-                        color: 'var(--text-primary)', border: '1px solid var(--border)',
-                        borderBottom: '2px solid var(--primary)',
-                        position: 'sticky', left: 0, backgroundColor: 'var(--bg-main)', zIndex: 1, minWidth: '120px'
-                      }}>
-                        สินค้า \ ไซส์
-                      </th>
-                      {group.sizes.length === 0 ? (
-                        <th style={{ padding: '8px 12px', border: '1px solid var(--border)', borderBottom: '2px solid var(--primary)', color: 'var(--text-tertiary)' }}>ไม่มีข้อมูลไซส์</th>
-                      ) : (
-                        group.sizes.map(size => (
-                          <th key={size} style={{
-                            padding: '8px 4px', fontWeight: 600, fontSize: '0.8rem',
-                            color: 'var(--primary)', border: '1px solid var(--border)',
-                            borderBottom: '2px solid var(--primary)', minWidth: '45px',
-                            whiteSpace: 'nowrap'
-                          }}>
-                            {size === 'free size' ? 'Free' : size}
+                <div key={group.category} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--bg-main)',
+                    borderRadius: 'var(--radius-md)',
+                    borderLeft: '4px solid var(--primary)'
+                  }}>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      หมวดหมู่: {group.category}
+                    </h4>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      {group.products.length} รายการ
+                    </span>
+                  </div>
+
+                  <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '0.875rem' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--bg-surface-hover)', borderBottom: '2px solid var(--border)' }}>
+                          <th style={{ padding: '12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-primary)', minWidth: '150px' }}>
+                            ชื่อสินค้า
                           </th>
-                        ))
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.products.map((p, idx) => (
-                      <tr key={p.id} style={{ backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)' }}>
-                        <td style={{
-                          padding: '10px 16px', fontWeight: 600, textAlign: 'left',
-                          color: 'var(--text-primary)', border: '1px solid var(--border)',
-                          position: 'sticky', left: 0,
-                          backgroundColor: idx % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', zIndex: 1
-                        }}>
-                          {p.name}
-                        </td>
-                        {group.sizes.length === 0 ? (
-                          <td style={{ border: '1px solid var(--border)', backgroundColor: '#94a3b8' }}></td>
-                        ) : (
-                          group.sizes.map(size => {
-                            const sizeData = p.sizes?.[size];
-                            const stock = sizeData
-                              ? (typeof sizeData === 'object' ? sizeData.stock : Number(sizeData))
-                              : null;
-                            
-                            return (
-                              <td key={size} style={{
-                                padding: '8px 4px',
-                                fontWeight: stock !== null ? 600 : 400,
-                                backgroundColor: stock === null ? '#94a3b8' : 'transparent',
-                                color: stock === null ? 'transparent' 
-                                  : stock === 0 ? 'var(--danger)' 
-                                  : stock <= 5 ? 'var(--warning)' 
-                                  : 'var(--text-primary)',
-                                border: '1px solid var(--border)',
-                              }}>
-                                {stock !== null ? stock : ''}
+                          {group.sizes.map(size => (
+                            <th key={size} style={{ padding: '12px 8px', fontWeight: 600, color: 'var(--text-secondary)', minWidth: '60px' }}>
+                              {size}
+                            </th>
+                          ))}
+                          <th style={{ padding: '12px 8px', fontWeight: 600, color: 'var(--primary)', minWidth: '70px' }}>
+                            รวม
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.products.map(p => {
+                          let rowTotal = 0;
+                          return (
+                            <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 500, color: 'var(--text-primary)' }}>
+                                <div>{p.name}</div>
+                                {p.product_code && (
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>#{p.product_code}</span>
+                                )}
                               </td>
-                            );
-                          })
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
+                              {group.sizes.map(size => {
+                                const sizeData = p.sizes?.[size];
+                                const stock = sizeData 
+                                  ? (typeof sizeData === 'object' ? Number(sizeData.stock || 0) : Number(sizeData))
+                                  : null;
+                                
+                                if (stock !== null) {
+                                  rowTotal += stock;
+                                }
+
+                                return (
+                                  <td key={size} style={{ padding: '10px 8px', color: stock === 0 ? 'var(--danger)' : 'var(--text-primary)' }}>
+                                    {stock !== null ? (
+                                      <span style={{ fontWeight: stock === 0 ? 600 : 400 }}>
+                                        {stock}
+                                      </span>
+                                    ) : (
+                                      <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                              <td style={{ padding: '10px 8px', fontWeight: 700, color: rowTotal === 0 ? 'var(--danger)' : 'var(--primary)', backgroundColor: 'var(--bg-main)' }}>
+                                {rowTotal}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
           </div>
         )}
       </div>

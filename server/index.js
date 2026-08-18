@@ -406,13 +406,54 @@ app.get('/api/category-codes', async (req, res) => {
 app.post('/api/category-codes', async (req, res) => {
   try {
     const { code, name } = req.body;
+    const existing = await query('SELECT * FROM category_codes WHERE code = $1', [code]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: `รหัสหมวดหมู่ ${code} มีอยู่ในระบบแล้ว` });
+    }
     const { rows } = await query(
-      'INSERT INTO category_codes(code, name) VALUES($1, $2) ON CONFLICT (code) DO UPDATE SET name=$2 RETURNING *',
+      'INSERT INTO category_codes(code, name) VALUES($1, $2) RETURNING *',
       [code, name]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create category code' });
+  }
+});
+
+// Update category code
+app.put('/api/category-codes/:code', async (req, res) => {
+  try {
+    const oldCode = req.params.code;
+    const { code: newCode, name } = req.body;
+    const formattedNewCode = String(newCode || oldCode).trim().padStart(2, '0');
+
+    if (formattedNewCode !== oldCode) {
+      const existing = await query('SELECT * FROM category_codes WHERE code = $1', [formattedNewCode]);
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ error: `รหัสหมวดหมู่ ${formattedNewCode} มีอยู่ในระบบแล้ว` });
+      }
+    }
+
+    const oldCat = await query('SELECT * FROM category_codes WHERE code = $1', [oldCode]);
+    const oldName = oldCat.rows[0]?.name;
+
+    await query('BEGIN');
+    if (formattedNewCode !== oldCode) {
+      await query('UPDATE category_codes SET code = $1, name = $2 WHERE code = $3', [formattedNewCode, name, oldCode]);
+    } else {
+      await query('UPDATE category_codes SET name = $1 WHERE code = $2', [name, oldCode]);
+    }
+
+    if (oldName && oldName !== name) {
+      await query('UPDATE products SET category = $1 WHERE category = $2', [name, oldName]);
+    }
+
+    await query('COMMIT');
+    res.json({ success: true, code: formattedNewCode, name });
+  } catch (err) {
+    await query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update category code' });
   }
 });
 
@@ -440,13 +481,41 @@ app.get('/api/size-codes', async (req, res) => {
 app.post('/api/size-codes', async (req, res) => {
   try {
     const { code, name } = req.body;
+    const existing = await query('SELECT * FROM size_codes WHERE code = $1', [code]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: `รหัสไซส์ ${code} มีอยู่ในระบบแล้ว` });
+    }
     const { rows } = await query(
-      'INSERT INTO size_codes(code, name) VALUES($1, $2) ON CONFLICT (code) DO UPDATE SET name=$2 RETURNING *',
+      'INSERT INTO size_codes(code, name) VALUES($1, $2) RETURNING *',
       [code, name]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create size code' });
+  }
+});
+
+// Update size code
+app.put('/api/size-codes/:code', async (req, res) => {
+  try {
+    const oldCode = req.params.code;
+    const { code: newCode, name } = req.body;
+    const formattedNewCode = String(newCode || oldCode).trim().padStart(2, '0');
+
+    if (formattedNewCode !== oldCode) {
+      const existing = await query('SELECT * FROM size_codes WHERE code = $1', [formattedNewCode]);
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ error: `รหัสไซส์ ${formattedNewCode} มีอยู่ในระบบแล้ว` });
+      }
+      await query('UPDATE size_codes SET code = $1, name = $2 WHERE code = $3', [formattedNewCode, name, oldCode]);
+    } else {
+      await query('UPDATE size_codes SET name = $1 WHERE code = $2', [name, oldCode]);
+    }
+
+    res.json({ success: true, code: formattedNewCode, name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update size code' });
   }
 });
 

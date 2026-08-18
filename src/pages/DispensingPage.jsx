@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Plus, 
   Search, 
   Filter, 
   FileSpreadsheet, 
@@ -16,10 +15,10 @@ import { DispensingList } from '../components/Dispensing/DispensingList';
 import { DispensingForm } from '../components/Dispensing/DispensingForm';
 import { Modal } from '../components/common/Modal';
 import { StatsCard } from '../components/Dashboard/StatsCard';
-import { exportDispensingHistory } from '../utils/exportUtils';
+import { exportHistoryToExcel } from '../utils/excel';
 
 export function DispensingPage() {
-  const { history, isLoading, fetchHistory, updateRecord, deleteRecord } = useDispensing();
+  const { history, isLoading, fetchHistory, addRecord, updateRecord, deleteRecord } = useDispensing();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
@@ -57,8 +56,10 @@ export function DispensingPage() {
   const handleOpenModal = (record = null) => {
     if (record) {
       setEditingRecord(record);
-      setIsModalOpen(true);
+    } else {
+      setEditingRecord(null);
     }
+    setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
@@ -67,12 +68,19 @@ export function DispensingPage() {
   };
 
   const handleSubmit = async (data) => {
-    if (editingRecord && editingRecord.id) {
+    if (editingRecord) {
       const result = await updateRecord(editingRecord.id, data);
-      if (result.success) {
+      if (result?.success !== false) {
         handleCloseModal();
       } else {
-        alert(result.error);
+        alert(result?.error || 'เกิดข้อผิดพลาดในการบันทึก');
+      }
+    } else {
+      const result = await addRecord(data);
+      if (result?.success !== false) {
+        handleCloseModal();
+      } else {
+        alert(result?.error || 'เกิดข้อผิดพลาดในการบันทึก');
       }
     }
   };
@@ -87,7 +95,7 @@ export function DispensingPage() {
   const confirmDelete = async () => {
     if (recordToDelete) {
       const result = await deleteRecord(recordToDelete.id);
-      if (!result.success) {
+      if (!result?.success && result?.error) {
         alert(result.error);
       }
       setRecordToDelete(null);
@@ -148,6 +156,10 @@ export function DispensingPage() {
     fetchHistory(emptyFilters);
   };
 
+  const handleExportExcel = () => {
+    exportHistoryToExcel(history);
+  };
+
   const inputStyle = {
     padding: '8px 12px 8px 36px',
     borderRadius: 'var(--radius-md)',
@@ -167,7 +179,7 @@ export function DispensingPage() {
           <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>ดูรายการรับเข้า-เบิกออก ค้นหา และส่งออกรายงาน</p>
         </div>
         <button
-          onClick={() => exportDispensingHistory(history, 'xlsx')}
+          onClick={handleExportExcel}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             padding: '8px 16px',
@@ -353,6 +365,7 @@ export function DispensingPage() {
 
           {/* Custom Date Range */}
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flex: '1 1 260px' }}>
+            <Calendar size={16} style={{ color: 'var(--text-tertiary)' }} />
             <input
               type="date"
               name="start_date"
@@ -429,7 +442,7 @@ export function DispensingPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title="แก้ไขประวัติรายการ"
+        title={editingRecord ? "แก้ไขประวัติรายการ" : "บันทึกประวัติการเบิก/รับสินค้า"}
       >
         <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius-md)', color: 'var(--primary)', fontSize: '0.875rem' }}>
           <strong>หมายเหตุ:</strong> การแก้ไขรายการ จะทำการหัก/คืนสต็อกสินค้าที่เกี่ยวข้องโดยอัตโนมัติ
