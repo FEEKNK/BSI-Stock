@@ -199,11 +199,50 @@ export function exportHistoryToExcel(history = []) {
 
   const todayStr = new Date().toISOString().split('T')[0];
   const rows = history.map((record, index) => {
-    const dateFormatted = formatExportDate(record.dispensed_date);
+    // 1. Extract Date: DD/MM/YYYY
+    let dateStr = '';
+    const rawDate = record.dispensed_date || record.created_at;
+    if (typeof record.dispensed_date === 'string') {
+      const clean = record.dispensed_date.split('T')[0];
+      const parts = clean.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parts[1].padStart(2, '0');
+        const d = parts[2].padStart(2, '0');
+        const thaiYear = y > 2400 ? y : y + 543;
+        dateStr = `${d}/${m}/${thaiYear}`;
+      }
+    }
+
+    if (!dateStr && rawDate) {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        const thaiYear = year > 2400 ? year : year + 543;
+        dateStr = `${day}/${month}/${thaiYear}`;
+      }
+    }
+
+    // 2. Extract Time: HH:mm น. from created_at
+    let timeStr = '';
+    if (record.created_at) {
+      const dt = new Date(record.created_at);
+      if (!isNaN(dt.getTime())) {
+        const hours = String(dt.getHours()).padStart(2, '0');
+        const minutes = String(dt.getMinutes()).padStart(2, '0');
+        timeStr = `${hours}:${minutes} น.`;
+      }
+    }
+
+    const dateTimeFormatted = (dateStr && timeStr) 
+      ? `${dateStr} ${timeStr}` 
+      : (dateStr || '-');
 
     return {
       'ลำดับ': index + 1,
-      'วันที่': dateFormatted,
+      'วัน/เวลาทำรายการ': dateTimeFormatted,
       'ประเภท': record.type === 'IN' ? 'รับเข้า' : 'เบิกออก',
       'HN': record.hn ? String(record.hn) : '-',
       'รหัสสินค้า': record.product_code || '-',
@@ -229,7 +268,7 @@ export function exportHistoryToExcel(history = []) {
 
   ws['!cols'] = [
     { wch: 8 },  // ลำดับ
-    { wch: 16 }, // วันที่ (ไม่มี 0:00)
+    { wch: 24 }, // วัน/เวลาทำรายการ (เช่น 18/08/2569 13:46 น.)
     { wch: 12 }, // ประเภท
     { wch: 18 }, // HN
     { wch: 15 }, // รหัสสินค้า
