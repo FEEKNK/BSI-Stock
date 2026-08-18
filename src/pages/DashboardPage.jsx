@@ -241,19 +241,55 @@ export function DashboardPage() {
                     </span>
                   </div>
 
-                  <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '0.875rem' }}>
+                  <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', position: 'relative' }}>
+                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, textAlign: 'center', fontSize: '0.8125rem' }}>
                       <thead>
-                        <tr style={{ backgroundColor: 'var(--bg-surface-hover)', borderBottom: '2px solid var(--border)' }}>
-                          <th style={{ padding: '12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-primary)', minWidth: '150px' }}>
+                        <tr style={{ backgroundColor: 'var(--bg-surface-hover)' }}>
+                          <th style={{
+                            padding: '10px 12px',
+                            textAlign: 'left',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
+                            minWidth: '120px',
+                            maxWidth: '160px',
+                            position: 'sticky',
+                            left: 0,
+                            backgroundColor: 'var(--bg-surface)',
+                            borderBottom: '2px solid var(--border)',
+                            borderRight: '1px solid var(--border)',
+                            zIndex: 2
+                          }}>
                             ชื่อสินค้า
                           </th>
                           {group.sizes.map(size => (
-                            <th key={size} style={{ padding: '12px 8px', fontWeight: 600, color: 'var(--text-secondary)', minWidth: '60px' }}>
-                              {size}
+                            <th 
+                              key={size} 
+                              style={{ 
+                                padding: '10px 4px', 
+                                fontWeight: 600, 
+                                color: 'var(--text-secondary)', 
+                                minWidth: (size.toLowerCase().includes('free') || size.includes('ฟรี')) ? '46px' : '36px',
+                                borderBottom: '2px solid var(--border)',
+                                fontSize: '0.75rem',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title={size}
+                            >
+                              {(size.toLowerCase() === 'free size' || size === 'ฟรีไซส์') ? 'Free' : size}
                             </th>
                           ))}
-                          <th style={{ padding: '12px 8px', fontWeight: 600, color: 'var(--primary)', minWidth: '70px' }}>
+                          <th style={{
+                            padding: '10px 6px',
+                            fontWeight: 700,
+                            color: 'var(--primary)',
+                            minWidth: '48px',
+                            position: 'sticky',
+                            right: 0,
+                            backgroundColor: 'var(--bg-main)',
+                            borderBottom: '2px solid var(--border)',
+                            borderLeft: '1px solid var(--border)',
+                            zIndex: 2
+                          }}>
                             รวม
                           </th>
                         </tr>
@@ -262,11 +298,22 @@ export function DashboardPage() {
                         {group.products.map(p => {
                           let rowTotal = 0;
                           return (
-                            <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                              <td style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 500, color: 'var(--text-primary)' }}>
-                                <div>{p.name}</div>
+                            <tr key={p.id} style={{ backgroundColor: 'var(--bg-surface)' }}>
+                              <td style={{
+                                padding: '8px 12px',
+                                textAlign: 'left',
+                                fontWeight: 500,
+                                color: 'var(--text-primary)',
+                                position: 'sticky',
+                                left: 0,
+                                backgroundColor: 'inherit',
+                                borderBottom: '1px solid var(--border)',
+                                borderRight: '1px solid var(--border)',
+                                zIndex: 1
+                              }}>
+                                <div style={{ fontWeight: 600 }}>{p.name}</div>
                                 {p.product_code && (
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>#{p.product_code}</span>
+                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>#{p.product_code}</span>
                                 )}
                               </td>
                               {group.sizes.map(size => {
@@ -280,18 +327,38 @@ export function DashboardPage() {
                                 }
 
                                 return (
-                                  <td key={size} style={{ padding: '10px 8px', color: stock === 0 ? 'var(--danger)' : 'var(--text-primary)' }}>
+                                  <td 
+                                    key={size} 
+                                    style={{ 
+                                      padding: '8px 4px', 
+                                      color: stock === 0 ? 'var(--danger)' : 'var(--text-primary)',
+                                      borderBottom: '1px solid var(--border)'
+                                    }}
+                                  >
                                     {stock !== null ? (
-                                      <span style={{ fontWeight: stock === 0 ? 600 : 400 }}>
+                                      <span style={{ 
+                                        fontWeight: stock === 0 ? 700 : (stock > 0 ? 500 : 400),
+                                        color: stock === 0 ? 'var(--danger)' : (stock <= 5 ? '#d97706' : 'inherit')
+                                      }}>
                                         {stock}
                                       </span>
                                     ) : (
-                                      <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+                                      <span style={{ color: 'var(--text-tertiary)', opacity: 0.4 }}>-</span>
                                     )}
                                   </td>
                                 );
                               })}
-                              <td style={{ padding: '10px 8px', fontWeight: 700, color: rowTotal === 0 ? 'var(--danger)' : 'var(--primary)', backgroundColor: 'var(--bg-main)' }}>
+                              <td style={{
+                                padding: '8px 6px',
+                                fontWeight: 700,
+                                color: rowTotal === 0 ? 'var(--danger)' : 'var(--primary)',
+                                position: 'sticky',
+                                right: 0,
+                                backgroundColor: 'var(--bg-main)',
+                                borderBottom: '1px solid var(--border)',
+                                borderLeft: '1px solid var(--border)',
+                                zIndex: 1
+                              }}>
                                 {rowTotal}
                               </td>
                             </tr>
