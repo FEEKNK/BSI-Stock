@@ -348,15 +348,24 @@ export function DashboardPage() {
                                   fontWt = 700;
                                 }
 
+                                let tooltipText = '';
+                                if (stock !== null) {
+                                  tooltipText = `${p.name} | ไซส์: ${size} | สต็อก: ${stock} ชิ้น${stock === 0 ? ' (หมดสต็อก)' : ''}`;
+                                } else {
+                                  tooltipText = `${p.name} | ไซส์: ${size} | (ไม่มีไซส์นี้)`;
+                                }
+
                                 return (
                                   <td 
                                     key={size} 
+                                    title={tooltipText}
                                     style={{ 
                                       padding: '8px 4px', 
                                       backgroundColor: cellBg,
                                       borderBottom: '1px solid var(--border)',
                                       borderRight: '1px solid var(--border)',
-                                      transition: 'background-color 0.15s'
+                                      transition: 'all 0.15s',
+                                      cursor: 'default'
                                     }}
                                   >
                                     {stock !== null ? (
@@ -373,17 +382,21 @@ export function DashboardPage() {
                                   </td>
                                 );
                               })}
-                              <td style={{
-                                padding: '8px 6px',
-                                fontWeight: 700,
-                                color: rowTotal === 0 ? 'var(--danger)' : 'var(--primary)',
-                                position: 'sticky',
-                                right: 0,
-                                backgroundColor: 'var(--bg-main)',
-                                borderBottom: '1px solid var(--border)',
-                                borderLeft: '1px solid var(--border)',
-                                zIndex: 1
-                              }}>
+                              <td 
+                                title={`สต็อกรวมของ ${p.name}: ${rowTotal} ชิ้น`}
+                                style={{
+                                  padding: '8px 6px',
+                                  fontWeight: 700,
+                                  color: rowTotal === 0 ? 'var(--danger)' : 'var(--primary)',
+                                  position: 'sticky',
+                                  right: 0,
+                                  backgroundColor: 'var(--bg-main)',
+                                  borderBottom: '1px solid var(--border)',
+                                  borderLeft: '1px solid var(--border)',
+                                  zIndex: 1,
+                                  cursor: 'default'
+                                }}
+                              >
                                 {rowTotal}
                               </td>
                             </tr>
