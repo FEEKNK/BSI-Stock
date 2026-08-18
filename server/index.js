@@ -122,10 +122,15 @@ app.patch('/api/products/:id/stock', async (req, res) => {
 // Get all dispensing history
 app.get('/api/dispensing-history', async (req, res) => {
   try {
-    const { hn, product_name, seller, start_date, end_date } = req.query;
+    const { hn, product_name, seller, start_date, end_date, type } = req.query;
     let baseQuery = 'SELECT * FROM dispensing_history WHERE 1=1';
     const values = [];
     let paramIndex = 1;
+
+    if (type && type !== 'ALL') {
+      baseQuery += ` AND type = $${paramIndex++}`;
+      values.push(type);
+    }
 
     if (hn) {
       baseQuery += ` AND hn ILIKE $${paramIndex++}`;

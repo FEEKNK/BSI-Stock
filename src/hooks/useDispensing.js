@@ -10,6 +10,7 @@ export function useDispensing() {
     setIsLoading(true);
     try {
       const queryParams = new URLSearchParams();
+      if (filters.type && filters.type !== 'ALL') queryParams.append('type', filters.type);
       if (filters.hn) queryParams.append('hn', filters.hn);
       if (filters.product_name) queryParams.append('product_name', filters.product_name);
       if (filters.seller) queryParams.append('seller', filters.seller);
