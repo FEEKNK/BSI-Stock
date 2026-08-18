@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Package, AlertTriangle, AlertOctagon, TrendingUp, Download } from 'lucide-react';
+import { Package, AlertTriangle, AlertOctagon, TrendingUp, Download, FileSpreadsheet } from 'lucide-react';
 import { useDashboard } from '../hooks/useDashboard';
 import { useAppContext } from '../context/AppContext';
 import { StatsCard } from '../components/Dashboard/StatsCard';
 import { StockChart } from '../components/Dashboard/StockChart';
 import { Badge } from '../components/common/Badge';
+import { exportStockMatrix } from '../utils/exportUtils';
 
 export function DashboardPage() {
   const { stats, lowStockItems } = useDashboard();
@@ -56,39 +57,6 @@ export function DashboardPage() {
   }, [products]);
 
   const [activeCategoryTab, setActiveCategoryTab] = useState('ทั้งหมด');
-
-  const exportToCSV = () => {
-    let csvContent = "หมวดหมู่,ชื่อสินค้า,ไซส์,สต็อกคงเหลือ\n";
-    
-    groupedStockMatrix.forEach(group => {
-      group.products.forEach(p => {
-        if (!group.sizes || group.sizes.length === 0) {
-          csvContent += `"${group.category}","${p.name}","-","0"\n`;
-        } else {
-          group.sizes.forEach(size => {
-            const sizeData = p.sizes?.[size];
-            const stock = sizeData
-              ? (typeof sizeData === 'object' ? sizeData.stock : Number(sizeData))
-              : null;
-            if (stock !== null) {
-              csvContent += `"${group.category}","${p.name}","${size}","${stock}"\n`;
-            }
-          });
-        }
-      });
-    });
-
-    // Add BOM for Excel UTF-8 compatibility
-    const bom = "\uFEFF";
-    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `stock_report_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -182,24 +150,44 @@ export function DashboardPage() {
             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
               📊 ตารางสต็อกแยกตามไซส์
             </h3>
-            <button
-              onClick={exportToCSV}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '6px 12px',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-secondary)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-sm)'
-              }}
-              title="ดาวน์โหลดเป็นไฟล์ CSV"
-            >
-              <Download size={14} /> Export CSV
-            </button>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button
+                onClick={() => exportStockMatrix(groupedStockMatrix, 'xlsx')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 12px',
+                  backgroundColor: '#107c41',
+                  border: 'none',
+                  color: '#ffffff',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(16, 124, 65, 0.2)'
+                }}
+                title="ดาวน์โหลดเป็นไฟล์ Excel (.xlsx) สวยงาม คอลัมน์พอดี"
+              >
+                <FileSpreadsheet size={14} /> Export Excel
+              </button>
+              <button
+                onClick={() => exportStockMatrix(groupedStockMatrix, 'csv')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 12px',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+                title="ดาวน์โหลดเป็นไฟล์ CSV"
+              >
+                <Download size={14} /> Export CSV
+              </button>
+            </div>
           </div>
           
           {/* Category Tabs */}
