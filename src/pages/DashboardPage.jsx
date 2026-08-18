@@ -104,32 +104,67 @@ export function DashboardPage() {
           border: '1px solid var(--border)',
           boxShadow: 'var(--shadow-sm)'
         }}>
-          <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>สินค้าที่ต้องสั่งซื้อด่วน</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>สินค้าที่ต้องสั่งซื้อด่วน</h3>
+            {lowStockItems.length > 0 && (
+              <span style={{ 
+                fontSize: '0.75rem', 
+                fontWeight: 600, 
+                padding: '3px 8px', 
+                borderRadius: '12px', 
+                backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+                color: 'var(--danger)' 
+              }}>
+                {lowStockItems.length} รายการไซส์
+              </span>
+            )}
+          </div>
           
           {lowStockItems.length === 0 ? (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
               ไม่มีสินค้าที่ใกล้หมด
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflowX: 'auto', maxHeight: '320px', overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                <thead>
+                <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-surface)', zIndex: 1 }}>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ padding: '12px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>ชื่อสินค้า</th>
-                    <th style={{ padding: '12px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>หมวดหมู่</th>
-                    <th style={{ padding: '12px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>จำนวนเหลือ</th>
-                    <th style={{ padding: '12px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>สถานะ</th>
+                    <th style={{ padding: '10px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>ชื่อสินค้า</th>
+                    <th style={{ padding: '10px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>หมวดหมู่</th>
+                    <th style={{ padding: '10px 8px', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'center' }}>ไซส์</th>
+                    <th style={{ padding: '10px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>จำนวนเหลือ</th>
+                    <th style={{ padding: '10px 0', fontWeight: 500, color: 'var(--text-secondary)' }}>สถานะ</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {lowStockItems.slice(0, 5).map(item => (
+                  {lowStockItems.slice(0, 10).map(item => (
                     <tr key={item.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                      <td style={{ padding: '12px 0', fontWeight: 500, color: 'var(--text-primary)' }}>{item.name}</td>
-                      <td style={{ padding: '12px 0', color: 'var(--text-secondary)' }}>{item.category}</td>
-                      <td style={{ padding: '12px 0', fontWeight: 600, color: 'var(--text-primary)' }}>{item.computedStock}</td>
-                      <td style={{ padding: '12px 0' }}>
+                      <td style={{ padding: '10px 0', fontWeight: 500, color: 'var(--text-primary)' }}>
+                        <div>{item.name}</div>
+                        {item.product_code && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>#{item.product_code}</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '10px 0', color: 'var(--text-secondary)' }}>{item.category}</td>
+                      <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          backgroundColor: 'var(--bg-main)',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border)'
+                        }}>
+                          {item.size}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 0', fontWeight: 700, color: item.computedStock === 0 ? 'var(--danger)' : '#d97706' }}>
+                        {item.computedStock} ชิ้น
+                      </td>
+                      <td style={{ padding: '10px 0' }}>
                         <Badge type={item.computedStock === 0 ? 'danger' : 'warning'}>
-                          {item.computedStock === 0 ? 'หมด' : 'ใกล้หมด'}
+                          {item.computedStock === 0 ? 'หมดสต็อก' : 'ใกล้หมด'}
                         </Badge>
                       </td>
                     </tr>
