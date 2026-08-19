@@ -53,24 +53,29 @@
 
 ---
 
-## ✨ รอบที่ 3: ฟีเจอร์ใหม่และวิเคราะห์ข้อมูล (New Standalone Features)
+## ✨ รอบที่ 3: ฟีเจอร์ใหม่และวิเคราะห์ข้อมูล (New Standalone Features) `[เสร็จสมบูรณ์ ✅]`
 > **เป้าหมาย:** เพิ่มความสามารถใหม่ที่ไม่กระทบกับระบบเดิม
 
-### 3.1 นำเข้าข้อมูลสินค้าจาก Excel (.xlsx Import)
+### 3.1 นำเข้าข้อมูลสินค้าจาก Excel (.xlsx Import) `[เสร็จแล้ว ✅]`
 - **ไฟล์ที่เกี่ยวข้อง:**
-  - `src/components/Products/ProductList.jsx` หรือ `ReferenceTable.jsx`
+  - `src/pages/ProductsPage.jsx`
+  - `src/components/Products/ImportProductsModal.jsx`
   - `src/utils/excel.js`
+  - `server/index.js` (`POST /api/products/bulk`)
 - **รายละเอียดการทำงาน:**
-  - ปุ่ม `Import Excel` พร้อมดาวน์โหลดไฟล์ Template ตัวอย่าง
-  - ระบบตรวจสอบความถูกต้องของข้อมูล (Validation) ก่อนบันทึกลงฐานข้อมูล
+  - ปุ่ม `Import Excel` และดาวน์โหลด Template มาตรฐาน (`product_import_template.xlsx`)
+  - หน้าต่างพรีวิวข้อมูลและตรวจสอบความถูกต้องก่อนกดบันทึก
+  - รองรับโหมด Upsert (อัปเดตข้อมูลเดิมและเพิ่มรายการใหม่)
 
-### 3.2 กราฟแนวโน้มการเบิก/รับสินค้า (Stock Movement & Trend Charts)
+### 3.2 กราฟแนวโน้มการเบิก/รับสินค้า (Stock Movement & Trend Charts) `[เสร็จแล้ว ✅]`
 - **ไฟล์ที่เกี่ยวข้อง:**
   - `src/pages/DashboardPage.jsx`
-  - `src/components/Dashboard/`
+  - `src/components/Dashboard/StockMovementChart.jsx`
+  - `src/components/Dashboard/TopDispensedWidget.jsx`
+  - `server/index.js` (`GET /api/dashboard/movement`)
 - **รายละเอียดการทำงาน:**
-  - เพิ่มกราฟสรุปยอดการเบิกจ่ายสินค้าแยกตามวัน/สัปดาห์/เดือน
-  - แสดงสินค้าที่มีการเบิกใช้งานสูงสุด (Top Dispensed Products)
+  - กราฟแท่งเปรียบเทียบยอดเบิกออก (สีแดง) vs รับเข้า (สีเขียว) เลือกดู 7 วัน, 14 วัน, 30 วัน
+  - วิดเจ็ตอันดับสินค้าที่มีการเบิกใช้สูงสุด (Top 5 Dispensed Products) พร้อมแถบเปอร์เซ็นต์และจำนวนครั้ง
 
 ---
 

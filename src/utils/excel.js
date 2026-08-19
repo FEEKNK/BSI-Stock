@@ -381,3 +381,186 @@ export function exportReferenceCodesToExcel(categoryCodes = [], sizeCodes = []) 
 
   XLSX.writeFile(wb, `category_size_codes_${todayStr}.xlsx`);
 }
+
+/**
+ * Generate and download sample Excel Template for Product Import
+ */
+export function downloadProductImportTemplate() {
+  const wb = XLSX.utils.book_new();
+
+  // 1. Template Sheet
+  const sampleData = [
+    {
+      'รหัสสินค้า': '001',
+      'ชื่อสินค้า *': 'เสื้อชั้นใน Sabina',
+      'หมวดหมู่': 'เสื้อชั้นใน',
+      'ไซส์ *': 'M',
+      'สต็อกเริ่มต้น *': 25,
+      'บาร์โค้ด': '001-04',
+      'เกณฑ์แจ้งเตือน': 30
+    },
+    {
+      'รหัสสินค้า': '001',
+      'ชื่อสินค้า *': 'เสื้อชั้นใน Sabina',
+      'หมวดหมู่': 'เสื้อชั้นใน',
+      'ไซส์ *': 'L',
+      'สต็อกเริ่มต้น *': 15,
+      'บาร์โค้ด': '001-05',
+      'เกณฑ์แจ้งเตือน': 30
+    },
+    {
+      'รหัสสินค้า': '002',
+      'ชื่อสินค้า *': 'เกาะอก Avie',
+      'หมวดหมู่': 'เกาะอก',
+      'ไซส์ *': 'free size',
+      'สต็อกเริ่มต้น *': 40,
+      'บาร์โค้ด': '002-01',
+      'เกณฑ์แจ้งเตือน': 30
+    }
+  ];
+
+  const wsTemplate = XLSX.utils.json_to_sheet(sampleData);
+  wsTemplate['!cols'] = [
+    { wch: 15 }, // รหัสสินค้า
+    { wch: 30 }, // ชื่อสินค้า *
+    { wch: 20 }, // หมวดหมู่
+    { wch: 15 }, // ไซส์ *
+    { wch: 18 }, // สต็อกเริ่มต้น *
+    { wch: 20 }, // บาร์โค้ด
+    { wch: 18 }  // เกณฑ์แจ้งเตือน
+  ];
+  XLSX.utils.book_append_sheet(wb, wsTemplate, 'แบบฟอร์มนำเข้าสินค้า');
+
+  // 2. Instructions Sheet
+  const instructions = [
+    { 'หัวข้อ': 'ชื่อสินค้า *', 'คำอธิบาย': 'จำเป็นต้องระบุ (หากชื่อหรือรหัสสินค้าซ้ำ ระบบจะรวมไซส์เข้าด้วยกัน)' },
+    { 'หัวข้อ': 'ไซส์ *', 'คำอธิบาย': 'ระบุชื่อไซส์ เช่น Free Size, XS, S, M, L, XL, 38, 40 ฯลฯ' },
+    { 'หัวข้อ': 'สต็อกเริ่มต้น *', 'คำอธิบาย': 'ระบุเป็นตัวเลขจำนวนเต็มบวก (เช่น 0, 10, 50)' },
+    { 'หัวข้อ': 'รหัสสินค้า', 'คำอธิบาย': 'รหัสสินค้าประจำตัว เช่น 001, 002 หรือว่างไว้' },
+    { 'หัวข้อ': 'หมวดหมู่', 'คำอธิบาย': 'เช่น เสื้อชั้นใน, เกาะอก, ผ้าคลุมหน้าอก (ระบบจะบันทึกหมวดใหม่อัตโนมัติ)' },
+    { 'หัวข้อ': 'บาร์โค้ด', 'คำอธิบาย': 'รหัสบาร์โค้ดประจำไซส์ หรือว่างไว้เพื่อสร้างทีหลัง' },
+    { 'หัวข้อ': 'เกณฑ์แจ้งเตือน', 'คำอธิบาย': 'จำนวนสต็อกขั้นต่ำสำหรับแจ้งเตือน (ค่าเริ่มต้น: 30)' }
+  ];
+  const wsInstructions = XLSX.utils.json_to_sheet(instructions);
+  wsInstructions['!cols'] = [{ wch: 20 }, { wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, wsInstructions, 'คำแนะนำการกรอก');
+
+  XLSX.writeFile(wb, 'product_import_template.xlsx');
+  return true;
+}
+
+/**
+ * Parse and Validate Excel file for Product Import
+ */
+export async function parseProductsFromExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+        if (!rawJson || rawJson.length === 0) {
+          resolve({
+            success: false,
+            error: 'ไฟล์ Excel ไม่มีข้อมูลหรือว่างเปล่า',
+            products: [],
+            rawRowCount: 0,
+            validCount: 0,
+            errors: []
+          });
+          return;
+        }
+
+        const errors = [];
+        const productsMap = {};
+
+        rawJson.forEach((row, index) => {
+          const rowNum = index + 2; // header is row 1
+          
+          // Map headers flexibly (Thai or English)
+          const name = String(row['ชื่อสินค้า *'] || row['ชื่อสินค้า'] || row['Product Name'] || row['name'] || '').trim();
+          const code = String(row['รหัสสินค้า'] || row['Product Code'] || row['code'] || '').trim();
+          const category = String(row['หมวดหมู่'] || row['Category'] || row['category'] || '').trim() || 'อื่นๆ';
+          const size = String(row['ไซส์ *'] || row['ไซส์'] || row['Size'] || row['size'] || 'free size').trim();
+          const rawStock = row['สต็อกเริ่มต้น *'] || row['สต็อกเริ่มต้น'] || row['สต็อก'] || row['Stock'] || row['stock'] || 0;
+          const barcode = String(row['บาร์โค้ด'] || row['Barcode'] || row['barcode'] || '').trim();
+          const thresholdVal = row['เกณฑ์แจ้งเตือน'] || row['Threshold'] || row['threshold'] || 30;
+
+          if (!name) {
+            errors.push(`แถวที่ ${rowNum}: ไม่ได้ระบุชื่อสินค้า`);
+            return;
+          }
+
+          const stock = parseInt(rawStock, 10);
+          if (isNaN(stock) || stock < 0) {
+            errors.push(`แถวที่ ${rowNum}: จำนวนสต็อกไม่ถูกต้อง ("${rawStock}")`);
+            return;
+          }
+
+          const threshold = parseInt(thresholdVal, 10) || 30;
+          const productKey = code ? `code_${code}` : `name_${name.toLowerCase()}`;
+
+          if (!productsMap[productKey]) {
+            productsMap[productKey] = {
+              product_code: code || null,
+              name: name,
+              category: category,
+              threshold: threshold,
+              sizes: {},
+              totalStock: 0,
+              barcode: barcode || null,
+              rowIndices: []
+            };
+          }
+
+          productsMap[productKey].rowIndices.push(rowNum);
+
+          const sizeKey = size || 'free size';
+          productsMap[productKey].sizes[sizeKey] = {
+            stock: stock,
+            barcode: barcode || ''
+          };
+        });
+
+        // Recalculate total stocks
+        const parsedProducts = Object.values(productsMap).map(p => {
+          const totalStock = Object.values(p.sizes).reduce((sum, s) => sum + (Number(s.stock) || 0), 0);
+          return {
+            ...p,
+            totalStock,
+            total_stock: totalStock
+          };
+        });
+
+        resolve({
+          success: true,
+          products: parsedProducts,
+          rawRowCount: rawJson.length,
+          validCount: parsedProducts.length,
+          errors: errors
+        });
+      } catch (err) {
+        console.error('Error parsing Excel:', err);
+        resolve({
+          success: false,
+          error: 'ไม่สามารถอ่านไฟล์ Excel ได้: ' + err.message,
+          products: [],
+          rawRowCount: 0,
+          validCount: 0,
+          errors: [err.message]
+        });
+      }
+    };
+
+    reader.onerror = (err) => {
+      reject(err);
+    };
+
+    reader.readAsArrayBuffer(file);
+  });
+}

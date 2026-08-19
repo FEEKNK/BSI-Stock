@@ -117,6 +117,130 @@ app.patch('/api/products/:id/stock', async (req, res) => {
   }
 });
 
+// Bulk Import / Upsert Products from Excel
+app.post('/api/products/bulk', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { items, mode = 'upsert' } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'ไม่พบข้อมูลสินค้าสำหรับนำเข้า' });
+    }
+
+    await client.query('BEGIN');
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    for (const item of items) {
+      const name = String(item.name || '').trim();
+      const code = item.product_code ? String(item.product_code).trim() : null;
+      const category = item.category ? String(item.category).trim() : 'อื่นๆ';
+      const threshold = item.threshold !== undefined && item.threshold !== null && item.threshold !== '' ? Number(item.threshold) : 30;
+      const price = Number(item.price) || 0;
+      const barcode = item.barcode ? String(item.barcode).trim() : null;
+      const description = item.description || '';
+      const sizes = item.sizes || {};
+      const totalStock = item.totalStock !== undefined ? Number(item.totalStock) : 
+        Object.values(sizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s?.stock : s) || 0), 0);
+
+      if (!name) continue;
+
+      // Check if product already exists by product_code or name
+      let findRes;
+      if (code) {
+        findRes = await client.query('SELECT * FROM products WHERE product_code = $1 OR name = $2 LIMIT 1', [code, name]);
+      } else {
+        findRes = await client.query('SELECT * FROM products WHERE name = $1 LIMIT 1', [name]);
+      }
+
+      if (findRes.rows.length > 0) {
+        if (mode === 'upsert') {
+          const existing = findRes.rows[0];
+          // Merge sizes: existing sizes + new sizes
+          const existingSizes = existing.sizes || {};
+          const mergedSizes = { ...existingSizes, ...sizes };
+          const mergedTotalStock = Object.values(mergedSizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s?.stock : s) || 0), 0);
+
+          await client.query(
+            `UPDATE products 
+             SET name = $1, category = $2, price = $3, barcode = COALESCE($4, barcode), 
+                 description = COALESCE($5, description), threshold = $6, sizes = $7, 
+                 total_stock = $8, product_code = COALESCE($9, product_code), updated_at = CURRENT_TIMESTAMP
+             WHERE id = $10`,
+            [name, category, price, barcode, description, threshold, JSON.stringify(mergedSizes), mergedTotalStock, code, existing.id]
+          );
+          updatedCount++;
+        }
+      } else {
+        await client.query(
+          `INSERT INTO products (name, category, price, barcode, description, threshold, sizes, total_stock, product_code)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [name, category, price, barcode, description, threshold, JSON.stringify(sizes), totalStock, code]
+        );
+        insertedCount++;
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({
+      success: true,
+      message: `นำเข้าสินค้าเรียบร้อย (เพิ่มใหม่ ${insertedCount} รายการ, อัปเดต ${updatedCount} รายการ)`,
+      insertedCount,
+      updatedCount,
+      totalProcessed: insertedCount + updatedCount
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Bulk product import error:', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการนำเข้าสินค้า: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Get stock movement & top dispensed products for dashboard
+app.get('/api/dashboard/movement', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days, 10) || 7;
+    
+    // 1. Daily Movement: IN vs OUT in last N days
+    const dailyQuery = `
+      SELECT 
+        TO_CHAR(dispensed_date, 'YYYY-MM-DD') as date_str,
+        SUM(CASE WHEN type = 'OUT' OR type IS NULL THEN quantity ELSE 0 END) as total_out,
+        SUM(CASE WHEN type = 'IN' THEN quantity ELSE 0 END) as total_in,
+        COUNT(*) as total_transactions
+      FROM dispensing_history
+      WHERE DATE(dispensed_date) >= CURRENT_DATE - ($1 || ' days')::INTERVAL
+      GROUP BY TO_CHAR(dispensed_date, 'YYYY-MM-DD')
+      ORDER BY date_str ASC
+    `;
+    const dailyRes = await query(dailyQuery, [days]);
+
+    // 2. Top Dispensed Products (type = 'OUT') in last N days
+    const topQuery = `
+      SELECT 
+        product_name,
+        SUM(quantity) as total_quantity,
+        COUNT(*) as times_dispensed
+      FROM dispensing_history
+      WHERE (type = 'OUT' OR type IS NULL)
+        AND DATE(dispensed_date) >= CURRENT_DATE - ($1 || ' days')::INTERVAL
+      GROUP BY product_name
+      ORDER BY total_quantity DESC
+      LIMIT 5
+    `;
+    const topRes = await query(topQuery, [days]);
+
+    res.json({
+      dailyMovement: dailyRes.rows,
+      topProducts: topRes.rows
+    });
+  } catch (err) {
+    console.error('Error fetching dashboard movement:', err);
+    res.status(500).json({ error: 'Failed to fetch dashboard movement' });
+  }
+});
+
 // --- Dispensing History ---
 
 // Get all dispensing history

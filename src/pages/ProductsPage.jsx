@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Printer, Download, SlidersHorizontal } from 'lucide-react';
+import { Plus, Search, Filter, Printer, Download, Upload, SlidersHorizontal } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { ProductList } from '../components/Products/ProductList';
 import { ProductForm } from '../components/Products/ProductForm';
@@ -7,14 +7,16 @@ import { Modal } from '../components/common/Modal';
 import { EmptyState } from '../components/common/EmptyState';
 import { BarcodeGenerator } from '../components/Barcode/BarcodeGenerator';
 import { PrintMasterSheetModal } from '../components/Products/PrintMasterSheetModal';
+import { ImportProductsModal } from '../components/Products/ImportProductsModal';
 import { exportProductsToExcel } from '../utils/excel';
 import { useToast } from '../context/ToastContext';
 
 export function ProductsPage() {
-  const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, updateStock, filterProducts } = useProducts();
+  const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, updateStock, filterProducts, refreshProducts } = useProducts();
   const { toast } = useToast();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
   const [productToPrint, setProductToPrint] = useState(null);
@@ -91,7 +93,25 @@ export function ProductsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>จัดการสินค้า</h1>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 18px',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--primary)',
+              color: 'var(--primary)',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+            title="นำเข้าข้อมูลสินค้าจากไฟล์ Excel (.xlsx)"
+          >
+            <Upload size={18} /> Import Excel
+          </button>
+
           <button
             onClick={handleExportExcel}
             style={{
@@ -337,6 +357,13 @@ export function ProductsPage() {
         isOpen={isPrintMasterOpen}
         onClose={() => setIsPrintMasterOpen(false)}
         products={products}
+      />
+
+      {/* Import Products from Excel Modal */}
+      <ImportProductsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportSuccess={refreshProducts}
       />
     </div>
   );

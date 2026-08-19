@@ -4,6 +4,8 @@ import { useDashboard } from '../hooks/useDashboard';
 import { useAppContext } from '../context/AppContext';
 import { StatsCard } from '../components/Dashboard/StatsCard';
 import { StockChart } from '../components/Dashboard/StockChart';
+import { StockMovementChart } from '../components/Dashboard/StockMovementChart';
+import { TopDispensedWidget } from '../components/Dashboard/TopDispensedWidget';
 import { Badge } from '../components/common/Badge';
 import { exportStockReportToExcel } from '../utils/excel';
 import { useToast } from '../context/ToastContext';
@@ -103,6 +105,13 @@ export function DashboardPage() {
         />
       </div>
 
+      {/* Stock Movement Trends & Top Dispensed Ranking */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
+        <StockMovementChart />
+        <TopDispensedWidget />
+      </div>
+
+      {/* Category Proportion & Urgent Reorder Table */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
         <StockChart />
         
