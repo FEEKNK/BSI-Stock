@@ -167,30 +167,106 @@ export function ImportProductsModal({ isOpen, onClose, onImportSuccess }) {
           </button>
         </div>
 
-        {/* Info Explainer Card */}
+        {/* Quick Rule Badges Bar */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+          <div style={{
+            padding: '10px 14px',
+            backgroundColor: 'rgba(239, 68, 68, 0.06)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            fontSize: '0.8rem'
+          }}>
+            <div style={{ fontWeight: 700, color: 'var(--danger)', marginBottom: '3px' }}>
+              🔴 1. บังคับกรอกแค่ 3 ช่อง
+            </div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              <strong>ชื่อสินค้า *</strong>, <strong>ไซส์ *</strong>, และ <strong>จำนวนสต็อก *</strong> (ช่องอื่นเว้นว่างได้)
+            </div>
+          </div>
+
+          <div style={{
+            padding: '10px 14px',
+            backgroundColor: 'rgba(0, 45, 116, 0.05)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(0, 45, 116, 0.15)',
+            fontSize: '0.8rem'
+          }}>
+            <div style={{ fontWeight: 700, color: 'var(--primary)', marginBottom: '3px' }}>
+              📦 2. 1 บรรทัด = 1 ไซส์
+            </div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              สินค้ามีหลายไซส์ ให้ใส่ <strong>ชื่อสินค้าเดียวกัน</strong> ซ้ำกันในแต่ละแถว ระบบจะรวมให้
+            </div>
+          </div>
+
+          <div style={{
+            padding: '10px 14px',
+            backgroundColor: 'rgba(16, 185, 129, 0.06)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            fontSize: '0.8rem'
+          }}>
+            <div style={{ fontWeight: 700, color: '#059669', marginBottom: '3px' }}>
+              📊 3. ยอดสต็อกคือยอดจริง
+            </div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              ใส่ <strong>ยอดคงเหลือจริงที่นับได้</strong> (ระบบจะปรับสต็อกให้ตรงกับตัวเลขนี้)
+            </div>
+          </div>
+        </div>
+
+        {/* Visual Sample Preview Box */}
         <div style={{
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'flex-start',
-          backgroundColor: 'rgba(59, 130, 246, 0.06)',
-          border: '1px solid rgba(59, 130, 246, 0.2)',
+          backgroundColor: 'var(--bg-main)',
+          border: '1px solid var(--border)',
           borderRadius: 'var(--radius-md)',
           padding: '12px 16px',
-          fontSize: '0.8125rem',
-          color: 'var(--text-primary)'
+          fontSize: '0.78rem'
         }}>
-          <Info size={18} color="#2563eb" style={{ flexShrink: 0, marginTop: '2px' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', lineHeight: 1.5 }}>
-            <strong style={{ color: '#1d4ed8' }}>💡 ข้อมูลสำคัญเกี่ยวกับตัวเลขสต็อกในไฟล์:</strong>
-            <div>
-              • ตัวเลขในช่อง <strong>"จำนวนสต็อก"</strong> คือ <strong>ยอดคงเหลือจริง ณ ปัจจุบัน</strong> ที่ตรวจนับได้ (ไม่ใช่ยอดบวกเพิ่ม)
-            </div>
-            <div>
-              • <strong>กรณีสินค้าเดิม:</strong> ระบบจะปรับสต็อกให้ตรงกับตัวเลขในไฟล์ทันที โดยที่ไซส์อื่นๆ ที่ไม่ได้กรอกในไฟล์จะยังคงอยู่ครบถ้วน
-            </div>
-            <div>
-              • <strong>กรณีต้องการบวกเพิ่ม:</strong> สามารถเลือกรูปแบบ <em>"บวกเพิ่มจากยอดเดิม"</em> ในขั้นตอนก่อนกดยืนยันด้านล่างได้
-            </div>
+          <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Info size={14} color="var(--primary)" />
+            ตัวอย่างการกรอกข้อมูลใน Excel ที่ถูกต้อง:
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', backgroundColor: 'var(--bg-surface)' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'rgba(0, 45, 116, 0.08)', borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>รหัส (เว้นได้)</th>
+                  <th style={{ padding: '6px 10px', color: 'var(--danger)', fontWeight: 700 }}>ชื่อสินค้า * (บังคับ)</th>
+                  <th style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>หมวดหมู่ (เว้นได้)</th>
+                  <th style={{ padding: '6px 10px', color: 'var(--danger)', fontWeight: 700 }}>ไซส์ * (บังคับ)</th>
+                  <th style={{ padding: '6px 10px', color: 'var(--danger)', fontWeight: 700, textAlign: 'right' }}>จำนวนสต็อก * (บังคับ)</th>
+                  <th style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>บาร์โค้ด (เว้นได้)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <td style={{ padding: '5px 10px', color: 'var(--text-tertiary)' }}>001</td>
+                  <td style={{ padding: '5px 10px', fontWeight: 600 }}>เสื้อชั้นใน Sabina</td>
+                  <td style={{ padding: '5px 10px', color: 'var(--text-secondary)' }}>เสื้อชั้นใน</td>
+                  <td style={{ padding: '5px 10px', fontWeight: 600, color: 'var(--primary)' }}>M</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700 }}>25</td>
+                  <td style={{ padding: '5px 10px', color: 'var(--text-tertiary)' }}>001-04</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <td style={{ padding: '5px 10px', color: 'var(--text-tertiary)' }}>001</td>
+                  <td style={{ padding: '5px 10px', fontWeight: 600 }}>เสื้อชั้นใน Sabina</td>
+                  <td style={{ padding: '5px 10px', color: 'var(--text-secondary)' }}>เสื้อชั้นใน</td>
+                  <td style={{ padding: '5px 10px', fontWeight: 600, color: 'var(--primary)' }}>L</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700 }}>15</td>
+                  <td style={{ padding: '5px 10px', color: 'var(--text-tertiary)' }}>001-05</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '5px 10px', color: 'var(--text-tertiary)' }}>002</td>
+                  <td style={{ padding: '5px 10px', fontWeight: 600 }}>เกาะอก Avie</td>
+                  <td style={{ padding: '5px 10px', color: 'var(--text-secondary)' }}>เกาะอก</td>
+                  <td style={{ padding: '5px 10px', fontWeight: 600, color: 'var(--primary)' }}>free size</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700 }}>40</td>
+                  <td style={{ padding: '5px 10px', color: 'var(--text-tertiary)' }}>002-01</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
