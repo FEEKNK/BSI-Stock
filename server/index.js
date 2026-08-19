@@ -153,23 +153,39 @@ app.post('/api/products/bulk', async (req, res) => {
       }
 
       if (findRes.rows.length > 0) {
-        if (mode === 'upsert') {
-          const existing = findRes.rows[0];
-          // Merge sizes: existing sizes + new sizes
-          const existingSizes = existing.sizes || {};
-          const mergedSizes = { ...existingSizes, ...sizes };
-          const mergedTotalStock = Object.values(mergedSizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s?.stock : s) || 0), 0);
+        const existing = findRes.rows[0];
+        const existingSizes = existing.sizes || {};
+        let mergedSizes = {};
 
-          await client.query(
-            `UPDATE products 
-             SET name = $1, category = $2, price = $3, barcode = COALESCE($4, barcode), 
-                 description = COALESCE($5, description), threshold = $6, sizes = $7, 
-                 total_stock = $8, product_code = COALESCE($9, product_code), updated_at = CURRENT_TIMESTAMP
-             WHERE id = $10`,
-            [name, category, price, barcode, description, threshold, JSON.stringify(mergedSizes), mergedTotalStock, code, existing.id]
-          );
-          updatedCount++;
+        if (mode === 'add_stock') {
+          // Add to existing stock
+          mergedSizes = { ...existingSizes };
+          Object.entries(sizes).forEach(([sizeKey, sizeVal]) => {
+            const addQty = typeof sizeVal === 'object' ? Number(sizeVal.stock || 0) : Number(sizeVal || 0);
+            const curData = existingSizes[sizeKey];
+            const curQty = curData ? (typeof curData === 'object' ? Number(curData.stock || 0) : Number(curData || 0)) : 0;
+            const barcode = (typeof sizeVal === 'object' ? sizeVal.barcode : '') || (curData && typeof curData === 'object' ? curData.barcode : '');
+            mergedSizes[sizeKey] = {
+              stock: curQty + addQty,
+              barcode: barcode
+            };
+          });
+        } else {
+          // Default: Replace / set as new balance
+          mergedSizes = { ...existingSizes, ...sizes };
         }
+
+        const mergedTotalStock = Object.values(mergedSizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s?.stock : s) || 0), 0);
+
+        await client.query(
+          `UPDATE products 
+           SET name = $1, category = $2, price = $3, barcode = COALESCE($4, barcode), 
+               description = COALESCE($5, description), threshold = $6, sizes = $7, 
+               total_stock = $8, product_code = COALESCE($9, product_code), updated_at = CURRENT_TIMESTAMP
+           WHERE id = $10`,
+          [name, category, price, barcode, description, threshold, JSON.stringify(mergedSizes), mergedTotalStock, code, existing.id]
+        );
+        updatedCount++;
       } else {
         await client.query(
           `INSERT INTO products (name, category, price, barcode, description, threshold, sizes, total_stock, product_code)

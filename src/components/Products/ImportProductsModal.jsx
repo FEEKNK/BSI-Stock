@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle2, X, RefreshCw, Layers, Check } from 'lucide-react';
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle2, X, RefreshCw, Layers, Check, Info } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { downloadProductImportTemplate, parseProductsFromExcel } from '../../utils/excel';
 import { useToast } from '../../context/ToastContext';
@@ -12,7 +12,7 @@ export function ImportProductsModal({ isOpen, onClose, onImportSuccess }) {
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [parseResult, setParseResult] = useState(null);
-  const [importMode, setImportMode] = useState('upsert'); // 'upsert' | 'insert_only'
+  const [importMode, setImportMode] = useState('upsert'); // 'upsert' | 'add_stock'
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleReset = () => {
@@ -165,6 +165,33 @@ export function ImportProductsModal({ isOpen, onClose, onImportSuccess }) {
           >
             <Download size={16} /> ดาวน์โหลด Template (.xlsx)
           </button>
+        </div>
+
+        {/* Info Explainer Card */}
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'flex-start',
+          backgroundColor: 'rgba(59, 130, 246, 0.06)',
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+          borderRadius: 'var(--radius-md)',
+          padding: '12px 16px',
+          fontSize: '0.8125rem',
+          color: 'var(--text-primary)'
+        }}>
+          <Info size={18} color="#2563eb" style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', lineHeight: 1.5 }}>
+            <strong style={{ color: '#1d4ed8' }}>💡 ข้อมูลสำคัญเกี่ยวกับตัวเลขสต็อกในไฟล์:</strong>
+            <div>
+              • ตัวเลขในช่อง <strong>"จำนวนสต็อก"</strong> คือ <strong>ยอดคงเหลือจริง ณ ปัจจุบัน</strong> ที่ตรวจนับได้ (ไม่ใช่ยอดบวกเพิ่ม)
+            </div>
+            <div>
+              • <strong>กรณีสินค้าเดิม:</strong> ระบบจะปรับสต็อกให้ตรงกับตัวเลขในไฟล์ทันที โดยที่ไซส์อื่นๆ ที่ไม่ได้กรอกในไฟล์จะยังคงอยู่ครบถ้วน
+            </div>
+            <div>
+              • <strong>กรณีต้องการบวกเพิ่ม:</strong> สามารถเลือกรูปแบบ <em>"บวกเพิ่มจากยอดเดิม"</em> ในขั้นตอนก่อนกดยืนยันด้านล่างได้
+            </div>
+          </div>
         </div>
 
         {/* Upload Dropzone */}
@@ -355,26 +382,79 @@ export function ImportProductsModal({ isOpen, onClose, onImportSuccess }) {
             {/* Import Mode Selection */}
             <div style={{
               backgroundColor: 'var(--bg-main)',
-              padding: '12px 16px',
+              padding: '16px',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '8px'
+              gap: '12px'
             }}>
-              <span style={{ fontWeight: 700, fontSize: '0.8125rem', color: 'var(--text-primary)' }}>
-                รูปแบบการนำเข้า:
-              </span>
-              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
+              <div>
+                <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                  รูปแบบการจัดการสต็อก:
+                </span>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  กำหนดว่าตัวเลขสต็อกในไฟล์ Excel จะถูกนำไปประมวลผลอย่างไรกับสินค้าเดิมที่มีอยู่ในระบบ
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '10px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: importMode === 'upsert' ? 'rgba(0, 45, 116, 0.06)' : 'var(--bg-surface)',
+                  border: `1px solid ${importMode === 'upsert' ? 'var(--primary)' : 'var(--border)'}`,
+                  transition: 'all 0.15s ease'
+                }}>
                   <input
                     type="radio"
                     name="importMode"
                     value="upsert"
                     checked={importMode === 'upsert'}
                     onChange={() => setImportMode('upsert')}
+                    style={{ marginTop: '3px' }}
                   />
-                  <span><strong>อัปเดตและเพิ่มใหม่ (Upsert)</strong> - หากพบชื่อหรือรหัสสินค้าซ้ำ จะรวมไซส์และอัปเดตข้อมูล</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: importMode === 'upsert' ? 'var(--primary)' : 'var(--text-primary)' }}>
+                      📊 ตั้งเป็นยอดคงเหลือใหม่ (New Balance) - แนะนำ
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.4 }}>
+                      ปรับสต็อกให้เท่ากับตัวเลขในไฟล์ทันที *(เช่น เดิมมี 10 กรอก 25 $\rightarrow$ กลายเป็น 25 ชิ้น)* เหมาะสำหรับการนับสต็อก
+                    </div>
+                  </div>
+                </label>
+
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: importMode === 'add_stock' ? 'rgba(16, 185, 129, 0.06)' : 'var(--bg-surface)',
+                  border: `1px solid ${importMode === 'add_stock' ? '#10b981' : 'var(--border)'}`,
+                  transition: 'all 0.15s ease'
+                }}>
+                  <input
+                    type="radio"
+                    name="importMode"
+                    value="add_stock"
+                    checked={importMode === 'add_stock'}
+                    onChange={() => setImportMode('add_stock')}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: importMode === 'add_stock' ? '#059669' : 'var(--text-primary)' }}>
+                      ➕ บวกเพิ่มจากยอดเดิม (Add to Stock)
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.4 }}>
+                      นำตัวเลขในไฟล์ไปบวกเพิ่มจากสต็อกเดิมที่มีอยู่ *(เช่น เดิมมี 10 กรอก 25 $\rightarrow$ กลายเป็น 35 ชิ้น)* เหมาะสำหรับรับของเข้า
+                    </div>
+                  </div>
                 </label>
               </div>
             </div>
