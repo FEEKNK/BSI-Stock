@@ -257,6 +257,166 @@ app.get('/api/dashboard/movement', async (req, res) => {
   }
 });
 
+// --- Database Backup & Restore ---
+
+// Full Database Backup Endpoint
+app.get('/api/backup', async (req, res) => {
+  try {
+    const productsRes = await query('SELECT * FROM products ORDER BY created_at ASC');
+    const historyRes = await query('SELECT * FROM dispensing_history ORDER BY dispensed_date ASC, created_at ASC');
+    const categoryCodesRes = await query('SELECT * FROM category_codes ORDER BY code ASC');
+    const sizeCodesRes = await query('SELECT * FROM size_codes ORDER BY code ASC');
+
+    const backupData = {
+      metadata: {
+        system: 'BSI-Stock',
+        version: '1.0.0',
+        exported_at: new Date().toISOString(),
+        counts: {
+          products: productsRes.rows.length,
+          dispensing_history: historyRes.rows.length,
+          category_codes: categoryCodesRes.rows.length,
+          size_codes: sizeCodesRes.rows.length
+        }
+      },
+      products: productsRes.rows,
+      dispensing_history: historyRes.rows,
+      category_codes: categoryCodesRes.rows,
+      size_codes: sizeCodesRes.rows
+    };
+
+    const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="bsi_stock_backup_${dateStr}.json"`);
+    res.send(JSON.stringify(backupData, null, 2));
+  } catch (err) {
+    console.error('Database backup error:', err);
+    res.status(500).json({ error: 'Failed to create database backup: ' + err.message });
+  }
+});
+
+// Full Database Restore Endpoint
+app.post('/api/restore', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { metadata, products, dispensing_history, category_codes, size_codes, settings } = req.body;
+
+    if (!Array.isArray(products) || !Array.isArray(dispensing_history)) {
+      return res.status(400).json({ error: 'รูปแบบไฟล์สำรองไม่ถูกต้อง (ไม่พบโครงสร้างข้อมูล products หรือ dispensing_history)' });
+    }
+
+    await client.query('BEGIN');
+
+    // 1. Clear existing data
+    await client.query('DELETE FROM dispensing_history');
+    await client.query('DELETE FROM products');
+    if (Array.isArray(category_codes) && category_codes.length > 0) {
+      await client.query('DELETE FROM category_codes');
+    }
+    if (Array.isArray(size_codes) && size_codes.length > 0) {
+      await client.query('DELETE FROM size_codes');
+    }
+
+    // 2. Restore category_codes
+    if (Array.isArray(category_codes)) {
+      for (const cat of category_codes) {
+        if (cat.code && cat.name) {
+          await client.query(
+            'INSERT INTO category_codes (code, name) VALUES ($1, $2) ON CONFLICT (code) DO UPDATE SET name = $2',
+            [String(cat.code).padStart(2, '0'), cat.name]
+          );
+        }
+      }
+    }
+
+    // 3. Restore size_codes
+    if (Array.isArray(size_codes)) {
+      for (const sz of size_codes) {
+        if (sz.code && sz.name) {
+          await client.query(
+            'INSERT INTO size_codes (code, name) VALUES ($1, $2) ON CONFLICT (code) DO UPDATE SET name = $2',
+            [String(sz.code).padStart(2, '0'), sz.name]
+          );
+        }
+      }
+    }
+
+    // 4. Restore products
+    for (const p of products) {
+      await client.query(
+        `INSERT INTO products (id, name, category, price, barcode, description, threshold, sizes, total_stock, product_code, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, CURRENT_TIMESTAMP), COALESCE($12, CURRENT_TIMESTAMP))
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           category = EXCLUDED.category,
+           price = EXCLUDED.price,
+           barcode = EXCLUDED.barcode,
+           description = EXCLUDED.description,
+           threshold = EXCLUDED.threshold,
+           sizes = EXCLUDED.sizes,
+           total_stock = EXCLUDED.total_stock,
+           product_code = EXCLUDED.product_code,
+           updated_at = EXCLUDED.updated_at`,
+        [
+          p.id,
+          p.name,
+          p.category || 'อื่นๆ',
+          p.price || 0,
+          p.barcode || null,
+          p.description || '',
+          p.threshold || 30,
+          typeof p.sizes === 'string' ? p.sizes : JSON.stringify(p.sizes || {}),
+          p.total_stock || 0,
+          p.product_code || null,
+          p.created_at || null,
+          p.updated_at || null
+        ]
+      );
+    }
+
+    // 5. Restore dispensing_history
+    for (const h of dispensing_history) {
+      await client.query(
+        `INSERT INTO dispensing_history (id, product_id, product_name, size, quantity, dispensed_date, hn, seller, note, type, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, CURRENT_TIMESTAMP))
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          h.id,
+          h.product_id || null,
+          h.product_name,
+          h.size,
+          h.quantity,
+          h.dispensed_date,
+          h.hn || '',
+          h.seller || '',
+          h.note || '',
+          h.type || 'OUT',
+          h.created_at || null
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'กู้คืนฐานข้อมูลสำเร็จเรียบร้อย',
+      restored: {
+        products: products.length,
+        dispensing_history: dispensing_history.length,
+        category_codes: category_codes?.length || 0,
+        size_codes: size_codes?.length || 0
+      }
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Database restore error:', err);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการกู้คืนฐานข้อมูล: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // --- Dispensing History ---
 
 // Get all dispensing history
