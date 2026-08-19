@@ -8,9 +8,11 @@ import { EmptyState } from '../components/common/EmptyState';
 import { BarcodeGenerator } from '../components/Barcode/BarcodeGenerator';
 import { PrintMasterSheetModal } from '../components/Products/PrintMasterSheetModal';
 import { exportProductsToExcel } from '../utils/excel';
+import { useToast } from '../context/ToastContext';
 
 export function ProductsPage() {
   const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, filterProducts } = useProducts();
+  const { toast } = useToast();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -38,11 +40,13 @@ export function ProductsPage() {
     setIsModalOpen(false);
   };
 
-  const handleSubmit = (data) => {
+  const handleSubmit = async (data) => {
     if (editingProduct && editingProduct.id) {
-      updateProduct(editingProduct.id, data);
+      await updateProduct(editingProduct.id, data);
+      toast.success('บันทึกการแก้ไขสินค้าสำเร็จ');
     } else {
-      addProduct(data);
+      await addProduct(data);
+      toast.success('เพิ่มสินค้าใหม่สำเร็จ');
     }
     handleCloseModal();
   };
@@ -54,15 +58,21 @@ export function ProductsPage() {
     }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (productToDelete) {
-      deleteProduct(productToDelete.id);
+      await deleteProduct(productToDelete.id);
+      toast.success(`ลบสินค้า "${productToDelete.name}" สำเร็จ`);
       setProductToDelete(null);
     }
   };
 
   const handleExportExcel = () => {
-    exportProductsToExcel(filteredProducts.length > 0 ? filteredProducts : products);
+    const success = exportProductsToExcel(filteredProducts.length > 0 ? filteredProducts : products);
+    if (success !== false) {
+      toast.success('ส่งออกรายการสินค้าเป็น Excel สำเร็จ');
+    } else {
+      toast.warning('ไม่มีข้อมูลสินค้าสำหรับส่งออก');
+    }
   };
 
   const inputStyle = {

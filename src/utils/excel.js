@@ -61,8 +61,7 @@ function calculateColumnWidths(data, headers = null) {
  */
 export function exportToExcel(data, fileName = 'export', sheetName = 'Sheet1', customColWidths = null) {
   if (!data || data.length === 0) {
-    alert('ไม่มีข้อมูลสำหรับส่งออก Excel');
-    return;
+    return false;
   }
 
   const ws = XLSX.utils.json_to_sheet(data);
@@ -73,6 +72,7 @@ export function exportToExcel(data, fileName = 'export', sheetName = 'Sheet1', c
 
   const finalFileName = fileName.endsWith('.xlsx') ? fileName : `${fileName}.xlsx`;
   XLSX.writeFile(wb, finalFileName);
+  return true;
 }
 
 /**
@@ -80,8 +80,7 @@ export function exportToExcel(data, fileName = 'export', sheetName = 'Sheet1', c
  */
 export function exportStockReportToExcel(groupedStockMatrix = [], products = []) {
   if (!groupedStockMatrix || groupedStockMatrix.length === 0) {
-    alert('ไม่มีข้อมูลสำหรับส่งออก');
-    return;
+    return false;
   }
 
   const wb = XLSX.utils.book_new();
@@ -193,8 +192,7 @@ export function exportStockReportToExcel(groupedStockMatrix = [], products = [])
  */
 export function exportHistoryToExcel(history = []) {
   if (!history || history.length === 0) {
-    alert('ไม่มีข้อมูลประวัติสำหรับส่งออก Excel');
-    return;
+    return false;
   }
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -293,8 +291,7 @@ export const exportStockMatrix = (groupedStockMatrix, products) => exportStockRe
  */
 export function exportProductsToExcel(products = []) {
   if (!products || products.length === 0) {
-    alert('ไม่มีข้อมูลสินค้าสำหรับส่งออก Excel');
-    return;
+    return false;
   }
 
   const todayStr = new Date().toISOString().split('T')[0];

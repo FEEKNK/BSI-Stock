@@ -44,9 +44,10 @@ export function useDispensing() {
         const newRecord = await res.json();
         setHistory(prev => [newRecord, ...prev]);
         refreshProducts();
-        return { success: true };
+        return { success: true, record: newRecord };
       }
-      return { success: false, error: 'Failed to add record' };
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.error || 'Failed to add record' };
     } catch (err) {
       console.error(err);
       return { success: false, error: err.message };
@@ -64,9 +65,10 @@ export function useDispensing() {
         const updatedRecord = await res.json();
         setHistory(prev => prev.map(r => r.id === id ? updatedRecord : r));
         refreshProducts();
-        return { success: true };
+        return { success: true, record: updatedRecord };
       }
-      return { success: false, error: 'Failed to update record' };
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.error || 'Failed to update record' };
     } catch (err) {
       console.error(err);
       return { success: false, error: err.message };
@@ -83,7 +85,8 @@ export function useDispensing() {
         refreshProducts();
         return { success: true };
       }
-      return { success: false, error: 'Failed to delete record' };
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.error || 'Failed to delete record' };
     } catch (err) {
       console.error(err);
       return { success: false, error: err.message };

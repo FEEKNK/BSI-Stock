@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { ToastProvider } from './context/ToastContext';
 import { Sidebar } from './components/Layout/Sidebar';
 import { Header } from './components/Layout/Header';
 
@@ -16,27 +17,29 @@ import './App.css';
 
 function App() {
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <div className="app-container">
-          <Sidebar />
-          <div className="main-wrapper">
-            <Header />
-            <main className="main-content">
-              <Routes>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/products" element={<ProductsPage />} />
-                <Route path="/categories" element={<CategoriesPage />} />
-                <Route path="/barcode" element={<BarcodePage />} />
-                <Route path="/history" element={<DispensingPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-              </Routes>
-            </main>
+    <ToastProvider>
+      <AppProvider>
+        <BrowserRouter>
+          <div className="app-container">
+            <Sidebar />
+            <div className="main-wrapper">
+              <Header />
+              <main className="main-content">
+                <Routes>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/products" element={<ProductsPage />} />
+                  <Route path="/categories" element={<CategoriesPage />} />
+                  <Route path="/barcode" element={<BarcodePage />} />
+                  <Route path="/history" element={<DispensingPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                </Routes>
+              </main>
 
+            </div>
           </div>
-        </div>
-      </BrowserRouter>
-    </AppProvider>
+        </BrowserRouter>
+      </AppProvider>
+    </ToastProvider>
   );
 }
 

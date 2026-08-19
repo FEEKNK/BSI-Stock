@@ -42,13 +42,38 @@ export function DispensingForm({ initialData = null, onSubmit, onCancel }) {
   const selectedProduct = products.find(p => p.id === formData.product_id);
   const availableSizes = selectedProduct && selectedProduct.sizes ? Object.keys(selectedProduct.sizes) : [];
 
+  // Calculate actual stock available for this size
+  let currentStock = 0;
+  if (selectedProduct && formData.size && selectedProduct.sizes) {
+    const sizeData = selectedProduct.sizes[formData.size];
+    if (sizeData !== undefined) {
+      currentStock = typeof sizeData === 'object' ? Number(sizeData.stock) || 0 : Number(sizeData) || 0;
+    }
+  }
+
+  // If in edit mode and same product/size as initialData, add back initial quantity
+  const isEditingSameSize = initialData && initialData.product_id === formData.product_id && initialData.size === formData.size;
+  const maxAllowedStock = isEditingSameSize ? currentStock + (Number(initialData.quantity) || 0) : currentStock;
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const newErrors = {};
     if (!formData.dispensed_date) newErrors.dispensed_date = 'กรุณาระบุวันที่';
+    if (!formData.hn || !formData.hn.trim()) newErrors.hn = 'กรุณาระบุรหัส HN คนไข้';
     if (!formData.product_id) newErrors.product_id = 'กรุณาเลือกสินค้า';
     if (!formData.size) newErrors.size = 'กรุณาเลือกไซส์';
-    if (!formData.quantity || formData.quantity < 1) newErrors.quantity = 'ระบุจำนวนที่ถูกต้อง';
+    if (!formData.seller || !formData.seller.trim()) newErrors.seller = 'กรุณาระบุชื่อผู้เบิกสินค้า';
+    
+    const qty = Number(formData.quantity);
+    if (!formData.quantity || qty < 1) {
+      newErrors.quantity = 'ระบุจำนวนที่ถูกต้อง (ต้องมากกว่า 0)';
+    } else if (formData.product_id && formData.size) {
+      if (maxAllowedStock <= 0) {
+        newErrors.quantity = 'สินค้านี้หมดสต็อก ไม่สามารถทำรายการเบิกได้';
+      } else if (qty > maxAllowedStock) {
+        newErrors.quantity = `จำนวนเบิกเกินสต็อกคงเหลือ (คงเหลือ ${maxAllowedStock} ชิ้น)`;
+      }
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -95,15 +120,16 @@ export function DispensingForm({ initialData = null, onSubmit, onCancel }) {
           {errors.dispensed_date && <span style={{color: 'var(--danger)', fontSize: '0.75rem'}}>{errors.dispensed_date}</span>}
         </div>
         <div>
-          <label style={labelStyle}>HN คนไข้</label>
+          <label style={labelStyle}>HN คนไข้ <span style={{color: 'var(--danger)'}}>*</span></label>
           <input
             type="text"
             name="hn"
             value={formData.hn}
             onChange={handleChange}
-            style={inputStyle}
+            style={{...inputStyle, borderColor: errors.hn ? 'var(--danger)' : 'var(--border)'}}
             placeholder="รหัส HN"
           />
+          {errors.hn && <span style={{color: 'var(--danger)', fontSize: '0.75rem'}}>{errors.hn}</span>}
         </div>
       </div>
 
@@ -125,7 +151,21 @@ export function DispensingForm({ initialData = null, onSubmit, onCancel }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         <div>
-          <label style={labelStyle}>เลือกไซส์ <span style={{color: 'var(--danger)'}}>*</span></label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>เลือกไซส์ <span style={{color: 'var(--danger)'}}>*</span></label>
+            {formData.size && (
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-full)',
+                backgroundColor: maxAllowedStock > 0 ? 'var(--success-bg)' : 'var(--danger-bg)',
+                color: maxAllowedStock > 0 ? 'var(--success)' : 'var(--danger)'
+              }}>
+                {maxAllowedStock > 0 ? `คงเหลือ ${maxAllowedStock} ชิ้น` : 'หมดสต็อก'}
+              </span>
+            )}
+          </div>
           <select
             name="size"
             value={formData.size}
@@ -134,36 +174,54 @@ export function DispensingForm({ initialData = null, onSubmit, onCancel }) {
             style={{...inputStyle, borderColor: errors.size ? 'var(--danger)' : 'var(--border)', cursor: formData.product_id ? 'pointer' : 'not-allowed'}}
           >
             <option value="">-- เลือกไซส์ --</option>
-            {availableSizes.map(size => (
-              <option key={size} value={size}>{size}</option>
-            ))}
+            {availableSizes.map(size => {
+              const sData = selectedProduct?.sizes?.[size];
+              const sStock = typeof sData === 'object' ? Number(sData?.stock || 0) : Number(sData || 0);
+              const effStock = (initialData && initialData.product_id === formData.product_id && initialData.size === size)
+                ? sStock + (Number(initialData.quantity) || 0)
+                : sStock;
+              return (
+                <option key={size} value={size}>
+                  {size} {effStock > 0 ? `(คงเหลือ ${effStock} ชิ้น)` : '(หมดสต็อก)'}
+                </option>
+              );
+            })}
           </select>
           {errors.size && <span style={{color: 'var(--danger)', fontSize: '0.75rem'}}>{errors.size}</span>}
         </div>
         <div>
-          <label style={labelStyle}>จำนวน <span style={{color: 'var(--danger)'}}>*</span></label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>จำนวน <span style={{color: 'var(--danger)'}}>*</span></label>
+            {formData.size && maxAllowedStock > 0 && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                (สูงสุด {maxAllowedStock})
+              </span>
+            )}
+          </div>
           <input
             type="number"
             name="quantity"
             min="1"
+            max={formData.size && maxAllowedStock > 0 ? maxAllowedStock : undefined}
             value={formData.quantity}
             onChange={handleChange}
             style={{...inputStyle, borderColor: errors.quantity ? 'var(--danger)' : 'var(--border)'}}
           />
-          {errors.quantity && <span style={{color: 'var(--danger)', fontSize: '0.75rem'}}>{errors.quantity}</span>}
+          {errors.quantity && <span style={{color: 'var(--danger)', fontSize: '0.75rem', display: 'block'}}>{errors.quantity}</span>}
         </div>
       </div>
 
       <div>
-        <label style={labelStyle}>ผู้ขาย / ผู้เบิก</label>
+        <label style={labelStyle}>ผู้ขาย / ผู้เบิก <span style={{color: 'var(--danger)'}}>*</span></label>
         <input
           type="text"
           name="seller"
           value={formData.seller}
           onChange={handleChange}
-          style={inputStyle}
+          style={{...inputStyle, borderColor: errors.seller ? 'var(--danger)' : 'var(--border)'}}
           placeholder="ชื่อผู้เบิกสินค้า"
         />
+        {errors.seller && <span style={{color: 'var(--danger)', fontSize: '0.75rem'}}>{errors.seller}</span>}
       </div>
 
       <div>

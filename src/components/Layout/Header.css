@@ -8,18 +8,19 @@
   padding: 0 32px;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 100;
   box-shadow: var(--shadow-sm);
 }
 
 .page-title {
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   margin: 0;
 }
 
 .header-actions {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -27,8 +28,8 @@
 
 .notification-btn {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -37,23 +38,361 @@
   color: var(--text-secondary);
   cursor: pointer;
   border: 1px solid var(--border);
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
-.notification-btn:hover {
-  background-color: var(--bg-surface-hover);
-  color: var(--text-primary);
+.notification-btn:hover,
+.notification-btn.active {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
 .notification-btn .badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -3px;
+  right: -3px;
   background-color: var(--danger);
   color: white;
   font-size: 0.65rem;
   font-weight: 700;
   padding: 2px 6px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 2px solid var(--bg-surface);
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+  animation: pulse 2s infinite;
+}
+
+/* Dropdown Container */
+.notification-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.18), 0 8px 16px -4px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideInToast 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Header */
+.notif-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--bg-surface);
+}
+
+.notif-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notif-count-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: var(--danger-bg);
+  color: var(--danger);
+}
+
+.notif-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.notif-close-btn:hover {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+}
+
+/* Filter Bar */
+.notif-filter-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: var(--bg-main);
+  border-bottom: 1px solid var(--border);
+}
+
+.notif-filter-tab {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.notif-filter-tab:hover {
+  color: var(--text-primary);
+  border-color: var(--text-tertiary);
+}
+
+.notif-filter-tab.active {
+  background-color: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+.notif-filter-tab.danger.active {
+  background-color: var(--danger);
+  color: #ffffff;
+  border-color: var(--danger);
+}
+
+.notif-filter-tab.warning.active {
+  background-color: var(--warning);
+  color: #ffffff;
+  border-color: var(--warning);
+}
+
+/* Body */
+.notif-body {
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 12px;
+  background-color: var(--bg-main);
+}
+
+.notif-empty {
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border);
+}
+
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Group Card (by Product) */
+.notif-group-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s;
+}
+
+.notif-group-card:hover {
+  border-color: var(--primary-light);
+}
+
+.notif-group-header {
+  padding: 8px 12px;
+  background-color: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.notif-group-header:hover .notif-view-link {
+  color: var(--primary);
+}
+
+.notif-product-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-view-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.notif-group-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.notif-item-row {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.8125rem;
+}
+
+.notif-item-row:last-child {
+  border-bottom: none;
+}
+
+.notif-item-row.danger {
+  background-color: rgba(239, 68, 68, 0.03);
+}
+
+.notif-item-row.warning {
+  background-color: rgba(245, 158, 11, 0.03);
+}
+
+.notif-icon.danger {
+  color: var(--danger);
+  flex-shrink: 0;
+}
+
+.notif-icon.warning {
+  color: var(--warning);
+  flex-shrink: 0;
+}
+
+.notif-badge {
+  font-size: 0.725rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.notif-badge.badge-danger {
+  background-color: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.notif-badge.badge-warning {
+  background-color: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+/* View Mode Toggle */
+.notif-view-toggle {
+  display: flex;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.notif-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.notif-toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.notif-toggle-btn.active {
+  background-color: var(--bg-surface);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Flat Row Style (1:1 with Urgent Table) */
+.notif-flat-row {
+  padding: 10px 12px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+
+.notif-flat-row:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.notif-flat-row.danger {
+  border-left: 3px solid var(--danger);
+}
+
+.notif-flat-row.warning {
+  border-left: 3px solid var(--warning);
+}
+
+/* Footer */
+.notif-footer {
+  padding: 10px 14px;
+  background-color: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notif-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s;
+}
+
+.notif-footer-btn:hover {
+  background-color: var(--primary-light);
+}
+
+.notif-footer-btn.secondary {
+  color: var(--text-secondary);
+}
+
+.notif-footer-btn.secondary:hover {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
 }

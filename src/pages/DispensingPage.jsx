@@ -16,9 +16,11 @@ import { DispensingForm } from '../components/Dispensing/DispensingForm';
 import { Modal } from '../components/common/Modal';
 import { StatsCard } from '../components/Dashboard/StatsCard';
 import { exportHistoryToExcel } from '../utils/excel';
+import { useToast } from '../context/ToastContext';
 
 export function DispensingPage() {
   const { history, isLoading, fetchHistory, addRecord, updateRecord, deleteRecord } = useDispensing();
+  const { toast } = useToast();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
@@ -54,11 +56,7 @@ export function DispensingPage() {
   }, [history]);
 
   const handleOpenModal = (record = null) => {
-    if (record) {
-      setEditingRecord(record);
-    } else {
-      setEditingRecord(null);
-    }
+    setEditingRecord(record);
     setIsModalOpen(true);
   };
 
@@ -71,16 +69,18 @@ export function DispensingPage() {
     if (editingRecord) {
       const result = await updateRecord(editingRecord.id, data);
       if (result?.success !== false) {
+        toast.success('บันทึกการแก้ไขรายการสำเร็จ');
         handleCloseModal();
       } else {
-        alert(result?.error || 'เกิดข้อผิดพลาดในการบันทึก');
+        toast.error(result?.error || 'เกิดข้อผิดพลาดในการบันทึก');
       }
     } else {
       const result = await addRecord(data);
       if (result?.success !== false) {
+        toast.success('บันทึกรายการเบิกจ่ายสำเร็จ');
         handleCloseModal();
       } else {
-        alert(result?.error || 'เกิดข้อผิดพลาดในการบันทึก');
+        toast.error(result?.error || 'เกิดข้อผิดพลาดในการบันทึก');
       }
     }
   };
@@ -95,8 +95,10 @@ export function DispensingPage() {
   const confirmDelete = async () => {
     if (recordToDelete) {
       const result = await deleteRecord(recordToDelete.id);
-      if (!result?.success && result?.error) {
-        alert(result.error);
+      if (result?.success !== false) {
+        toast.success('ลบรายการและคืนสต็อกสำเร็จ');
+      } else {
+        toast.error(result?.error || 'เกิดข้อผิดพลาดในการลบรายการ');
       }
       setRecordToDelete(null);
     }
@@ -157,7 +159,12 @@ export function DispensingPage() {
   };
 
   const handleExportExcel = () => {
-    exportHistoryToExcel(history);
+    const success = exportHistoryToExcel(history);
+    if (success !== false) {
+      toast.success('ส่งออกประวัติคลังสินค้าเป็น Excel สำเร็จ');
+    } else {
+      toast.warning('ไม่มีข้อมูลประวัติสำหรับส่งออก');
+    }
   };
 
   const inputStyle = {

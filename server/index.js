@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { query } from './db.js';
+import { query, pool } from './db.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -165,69 +165,140 @@ app.get('/api/dispensing-history', async (req, res) => {
 
 // Create dispensing record (and deduct stock)
 app.post('/api/dispensing-history', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { product_id, product_name, size, quantity, dispensed_date, hn, seller, note } = req.body;
-    
-    await query('BEGIN');
+    const { product_id, product_name, size, quantity, dispensed_date, hn, seller, note, type } = req.body;
+    const dispenseQty = Number(quantity);
 
-    // 1. Insert record
-    const q = `
-      INSERT INTO dispensing_history (product_id, product_name, size, quantity, dispensed_date, hn, seller, note)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *
-    `;
-    const values = [product_id, product_name, size, quantity, dispensed_date, hn, seller, note];
-    const { rows } = await query(q, values);
-    const newRecord = rows[0];
+    if (!dispenseQty || dispenseQty < 1) {
+      return res.status(400).json({ error: 'กรุณาระบุจำนวนที่ถูกต้อง (ต้องมากกว่า 0)' });
+    }
 
-    // 2. Deduct stock
-    if (product_id) {
-      const { rows: prodRows } = await query('SELECT sizes, total_stock FROM products WHERE id = $1', [product_id]);
+    await client.query('BEGIN');
+
+    const isOut = !type || type === 'OUT';
+
+    // 1. Stock validation & deduction
+    if (product_id && isOut) {
+      const { rows: prodRows } = await client.query('SELECT id, name, sizes, total_stock FROM products WHERE id = $1 FOR UPDATE', [product_id]);
+      if (prodRows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'ไม่พบข้อมูลสินค้า' });
+      }
+
+      const prod = prodRows[0];
+      let sizes = prod.sizes || {};
+      const sizeData = sizes[size];
+      const availableStock = sizeData !== undefined ? (typeof sizeData === 'object' ? Number(sizeData.stock) || 0 : Number(sizeData) || 0) : 0;
+
+      if (availableStock < dispenseQty) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `สต็อกคงเหลือไม่เพียงพอ สำหรับสินค้า "${prod.name}" ไซส์ ${size} (คงเหลือ: ${availableStock} ชิ้น, ต้องการเบิก: ${dispenseQty} ชิ้น)` 
+        });
+      }
+
+      if (typeof sizes[size] === 'object') {
+        sizes[size].stock = Math.max(0, availableStock - dispenseQty);
+      } else {
+        sizes[size] = Math.max(0, availableStock - dispenseQty);
+      }
+
+      const totalStock = Object.values(sizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s.stock : s) || 0), 0);
+      await client.query('UPDATE products SET sizes = $1, total_stock = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [JSON.stringify(sizes), totalStock, product_id]);
+    } else if (product_id && type === 'IN') {
+      const { rows: prodRows } = await client.query('SELECT id, name, sizes, total_stock FROM products WHERE id = $1 FOR UPDATE', [product_id]);
       if (prodRows.length > 0) {
         const prod = prodRows[0];
         let sizes = prod.sizes || {};
-        let totalStock = prod.total_stock || 0;
-
-        if (sizes[size]) {
-          let oldStock = 0;
-          if (typeof sizes[size] === 'object') {
-            oldStock = Number(sizes[size].stock) || 0;
-            sizes[size].stock = Math.max(0, oldStock - quantity);
-          } else {
-            oldStock = Number(sizes[size]) || 0;
-            sizes[size] = Math.max(0, oldStock - quantity);
-          }
-          
-          totalStock = Object.values(sizes).reduce((sum, sizeData) => {
-            const s = typeof sizeData === 'number' || typeof sizeData === 'string' ? sizeData : sizeData?.stock;
-            return sum + (Number(s) || 0);
-          }, 0);
-
-          await query('UPDATE products SET sizes = $1, total_stock = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [JSON.stringify(sizes), totalStock, product_id]);
+        const sizeData = sizes[size];
+        const oldStock = sizeData !== undefined ? (typeof sizeData === 'object' ? Number(sizeData.stock) || 0 : Number(sizeData) || 0) : 0;
+        
+        if (typeof sizes[size] === 'object') {
+          sizes[size].stock = oldStock + dispenseQty;
+        } else {
+          sizes[size] = oldStock + dispenseQty;
         }
+        const totalStock = Object.values(sizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s.stock : s) || 0), 0);
+        await client.query('UPDATE products SET sizes = $1, total_stock = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [JSON.stringify(sizes), totalStock, product_id]);
       }
     }
 
-    await query('COMMIT');
+    // 2. Insert record
+    const q = `
+      INSERT INTO dispensing_history (product_id, product_name, size, quantity, dispensed_date, hn, seller, note, type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
+    const values = [product_id, product_name, size, dispenseQty, dispensed_date, hn, seller, note, type || 'OUT'];
+    const { rows } = await client.query(q, values);
+    const newRecord = rows[0];
+
+    await client.query('COMMIT');
     res.status(201).json(newRecord);
   } catch (err) {
-    await query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
-    res.status(500).json({ error: 'Failed to create dispensing record' });
+    res.status(500).json({ error: 'Failed to create dispensing record: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 
 // Bulk create dispensing records (and update stock)
 app.post('/api/dispensing-history/bulk', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { mode, dispensed_date, hn, seller, note, items } = req.body;
-    
-    await query('BEGIN');
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'ไม่มีรายการสินค้าที่ต้องการบันทึก' });
+    }
+
+    await client.query('BEGIN');
+
+    // If OUT mode, aggregate requested quantities per product and size, and lock rows to validate stock
+    if (mode === 'OUT') {
+      const requestedByProduct = {};
+      for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        if (qty <= 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `จำนวนสินค้า "${item.product_name}" ต้องมากกว่า 0` });
+        }
+        if (item.product_id) {
+          if (!requestedByProduct[item.product_id]) {
+            requestedByProduct[item.product_id] = { productName: item.product_name, sizes: {} };
+          }
+          requestedByProduct[item.product_id].sizes[item.size] = (requestedByProduct[item.product_id].sizes[item.size] || 0) + qty;
+        }
+      }
+
+      for (const [prodId, reqData] of Object.entries(requestedByProduct)) {
+        const { rows: prodRows } = await client.query('SELECT id, name, sizes, total_stock FROM products WHERE id = $1 FOR UPDATE', [prodId]);
+        if (prodRows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: `ไม่พบข้อมูลสินค้า "${reqData.productName}"` });
+        }
+        const prod = prodRows[0];
+        const sizes = prod.sizes || {};
+        for (const [sz, reqQty] of Object.entries(reqData.sizes)) {
+          const sizeData = sizes[sz];
+          const availableStock = sizeData !== undefined ? (typeof sizeData === 'object' ? Number(sizeData.stock) || 0 : Number(sizeData) || 0) : 0;
+          if (availableStock < reqQty) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+              error: `สต็อกคงเหลือไม่เพียงพอ สำหรับสินค้า "${prod.name}" ไซส์ ${sz} (คงเหลือ: ${availableStock} ชิ้น, ต้องการเบิก: ${reqQty} ชิ้น)`
+            });
+          }
+        }
+      }
+    }
 
     const createdRecords = [];
 
     for (const item of items) {
       const { product_id, product_name, size, quantity } = item;
+      const qty = Number(quantity) || 0;
 
       // 1. Insert record
       const q = `
@@ -235,13 +306,13 @@ app.post('/api/dispensing-history/bulk', async (req, res) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `;
-      const values = [product_id, product_name, size, quantity, dispensed_date, hn, seller, note, mode];
-      const { rows } = await query(q, values);
+      const values = [product_id, product_name, size, qty, dispensed_date, hn, seller, note, mode];
+      const { rows } = await client.query(q, values);
       createdRecords.push(rows[0]);
 
       // 2. Update stock
       if (product_id) {
-        const { rows: prodRows } = await query('SELECT sizes, total_stock FROM products WHERE id = $1', [product_id]);
+        const { rows: prodRows } = await client.query('SELECT sizes, total_stock FROM products WHERE id = $1', [product_id]);
         if (prodRows.length > 0) {
           const prod = prodRows[0];
           let sizes = prod.sizes || {};
@@ -251,10 +322,10 @@ app.post('/api/dispensing-history/bulk', async (req, res) => {
             let oldStock = 0;
             if (typeof sizes[size] === 'object') {
               oldStock = Number(sizes[size].stock) || 0;
-              sizes[size].stock = mode === 'IN' ? oldStock + quantity : Math.max(0, oldStock - quantity);
+              sizes[size].stock = mode === 'IN' ? oldStock + qty : Math.max(0, oldStock - qty);
             } else {
               oldStock = Number(sizes[size]) || 0;
-              sizes[size] = mode === 'IN' ? oldStock + quantity : Math.max(0, oldStock - quantity);
+              sizes[size] = mode === 'IN' ? oldStock + qty : Math.max(0, oldStock - qty);
             }
             
             totalStock = Object.values(sizes).reduce((sum, sizeData) => {
@@ -262,72 +333,87 @@ app.post('/api/dispensing-history/bulk', async (req, res) => {
               return sum + (Number(s) || 0);
             }, 0);
 
-            await query('UPDATE products SET sizes = $1, total_stock = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [JSON.stringify(sizes), totalStock, product_id]);
+            await client.query('UPDATE products SET sizes = $1, total_stock = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [JSON.stringify(sizes), totalStock, product_id]);
           }
         }
       }
     }
 
-    await query('COMMIT');
+    await client.query('COMMIT');
     res.status(201).json({ success: true, count: createdRecords.length, records: createdRecords });
   } catch (err) {
-    await query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
-    res.status(500).json({ error: 'Failed to process bulk dispensing' });
+    res.status(500).json({ error: 'Failed to process bulk dispensing: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 
-
 // Update dispensing record
 app.put('/api/dispensing-history/:id', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { product_id, product_name, size, quantity, dispensed_date, hn, seller, note } = req.body;
-    
-    await query('BEGIN');
+    const newQty = Number(quantity);
+    if (!newQty || newQty < 1) {
+      return res.status(400).json({ error: 'กรุณาระบุจำนวนที่ถูกต้อง (ต้องมากกว่า 0)' });
+    }
+
+    await client.query('BEGIN');
 
     // Get old record to handle stock adjustment
-    const { rows: oldRows } = await query('SELECT * FROM dispensing_history WHERE id = $1', [id]);
+    const { rows: oldRows } = await client.query('SELECT * FROM dispensing_history WHERE id = $1', [id]);
     if (oldRows.length === 0) {
-      await query('ROLLBACK');
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Record not found' });
     }
     const oldRecord = oldRows[0];
+    const oldQty = Number(oldRecord.quantity) || 0;
+    const isOutRecord = !oldRecord.type || oldRecord.type === 'OUT';
 
-    // Revert old stock if product/size changed or quantity changed
-    // For simplicity, we can revert old stock, then apply new stock
-    if (oldRecord.product_id) {
-      const { rows: pRows } = await query('SELECT sizes, total_stock FROM products WHERE id = $1', [oldRecord.product_id]);
+    // 1. Revert old stock if OUT record
+    if (oldRecord.product_id && isOutRecord) {
+      const { rows: pRows } = await client.query('SELECT sizes, total_stock FROM products WHERE id = $1 FOR UPDATE', [oldRecord.product_id]);
       if (pRows.length > 0) {
         const prod = pRows[0];
         let sizes = prod.sizes || {};
-        if (sizes[oldRecord.size]) {
+        if (sizes[oldRecord.size] !== undefined) {
           if (typeof sizes[oldRecord.size] === 'object') {
-            sizes[oldRecord.size].stock = (Number(sizes[oldRecord.size].stock) || 0) + oldRecord.quantity;
+            sizes[oldRecord.size].stock = (Number(sizes[oldRecord.size].stock) || 0) + oldQty;
           } else {
-            sizes[oldRecord.size] = (Number(sizes[oldRecord.size]) || 0) + oldRecord.quantity;
+            sizes[oldRecord.size] = (Number(sizes[oldRecord.size]) || 0) + oldQty;
           }
           let totalStock = Object.values(sizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s.stock : s) || 0), 0);
-          await query('UPDATE products SET sizes = $1, total_stock = $2 WHERE id = $3', [JSON.stringify(sizes), totalStock, oldRecord.product_id]);
+          await client.query('UPDATE products SET sizes = $1, total_stock = $2 WHERE id = $3', [JSON.stringify(sizes), totalStock, oldRecord.product_id]);
         }
       }
     }
 
-    // Apply new stock
-    if (product_id) {
-      const { rows: pRows } = await query('SELECT sizes, total_stock FROM products WHERE id = $1', [product_id]);
+    // 2. Validate and Apply new stock if OUT record
+    if (product_id && isOutRecord) {
+      const { rows: pRows } = await client.query('SELECT id, name, sizes, total_stock FROM products WHERE id = $1 FOR UPDATE', [product_id]);
       if (pRows.length > 0) {
         const prod = pRows[0];
         let sizes = prod.sizes || {};
-        if (sizes[size]) {
-          if (typeof sizes[size] === 'object') {
-            sizes[size].stock = Math.max(0, (Number(sizes[size].stock) || 0) - quantity);
-          } else {
-            sizes[size] = Math.max(0, (Number(sizes[size]) || 0) - quantity);
-          }
-          let totalStock = Object.values(sizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s.stock : s) || 0), 0);
-          await query('UPDATE products SET sizes = $1, total_stock = $2 WHERE id = $3', [JSON.stringify(sizes), totalStock, product_id]);
+        const sizeData = sizes[size];
+        const availableStock = sizeData !== undefined ? (typeof sizeData === 'object' ? Number(sizeData.stock) || 0 : Number(sizeData) || 0) : 0;
+        
+        if (availableStock < newQty) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: `สต็อกคงเหลือไม่เพียงพอ สำหรับสินค้า "${prod.name}" ไซส์ ${size} (คงเหลือ: ${availableStock} ชิ้น, ต้องการเบิก: ${newQty} ชิ้น)`
+          });
         }
+
+        if (typeof sizes[size] === 'object') {
+          sizes[size].stock = availableStock - newQty;
+        } else {
+          sizes[size] = availableStock - newQty;
+        }
+        let totalStock = Object.values(sizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s.stock : s) || 0), 0);
+        await client.query('UPDATE products SET sizes = $1, total_stock = $2 WHERE id = $3', [JSON.stringify(sizes), totalStock, product_id]);
       }
     }
 
@@ -337,35 +423,38 @@ app.put('/api/dispensing-history/:id', async (req, res) => {
       WHERE id = $9
       RETURNING *
     `;
-    const values = [product_id, product_name, size, quantity, dispensed_date, hn, seller, note, id];
-    const { rows } = await query(q, values);
+    const values = [product_id, product_name, size, newQty, dispensed_date, hn, seller, note, id];
+    const { rows } = await client.query(q, values);
     
-    await query('COMMIT');
+    await client.query('COMMIT');
     res.json(rows[0]);
   } catch (err) {
-    await query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
-    res.status(500).json({ error: 'Failed to update dispensing record' });
+    res.status(500).json({ error: 'Failed to update dispensing record: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 
 // Delete dispensing record
 app.delete('/api/dispensing-history/:id', async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     
-    await query('BEGIN');
+    await client.query('BEGIN');
     
-    const { rows: oldRows } = await query('SELECT * FROM dispensing_history WHERE id = $1', [id]);
+    const { rows: oldRows } = await client.query('SELECT * FROM dispensing_history WHERE id = $1', [id]);
     if (oldRows.length === 0) {
-      await query('ROLLBACK');
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Record not found' });
     }
     const oldRecord = oldRows[0];
 
     // Revert stock
     if (oldRecord.product_id) {
-      const { rows: pRows } = await query('SELECT sizes, total_stock FROM products WHERE id = $1', [oldRecord.product_id]);
+      const { rows: pRows } = await client.query('SELECT sizes, total_stock FROM products WHERE id = $1', [oldRecord.product_id]);
       if (pRows.length > 0) {
         const prod = pRows[0];
         let sizes = prod.sizes || {};
@@ -376,19 +465,21 @@ app.delete('/api/dispensing-history/:id', async (req, res) => {
             sizes[oldRecord.size] = (Number(sizes[oldRecord.size]) || 0) + oldRecord.quantity;
           }
           let totalStock = Object.values(sizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s.stock : s) || 0), 0);
-          await query('UPDATE products SET sizes = $1, total_stock = $2 WHERE id = $3', [JSON.stringify(sizes), totalStock, oldRecord.product_id]);
+          await client.query('UPDATE products SET sizes = $1, total_stock = $2 WHERE id = $3', [JSON.stringify(sizes), totalStock, oldRecord.product_id]);
         }
       }
     }
 
-    await query('DELETE FROM dispensing_history WHERE id = $1', [id]);
+    await client.query('DELETE FROM dispensing_history WHERE id = $1', [id]);
     
-    await query('COMMIT');
+    await client.query('COMMIT');
     res.json({ message: 'Record deleted successfully' });
   } catch (err) {
-    await query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(500).json({ error: 'Failed to delete dispensing record' });
+  } finally {
+    client.release();
   }
 });
 
@@ -422,38 +513,41 @@ app.post('/api/category-codes', async (req, res) => {
 
 // Update category code
 app.put('/api/category-codes/:code', async (req, res) => {
+  const client = await pool.connect();
   try {
     const oldCode = req.params.code;
     const { code: newCode, name } = req.body;
     const formattedNewCode = String(newCode || oldCode).trim().padStart(2, '0');
 
     if (formattedNewCode !== oldCode) {
-      const existing = await query('SELECT * FROM category_codes WHERE code = $1', [formattedNewCode]);
+      const existing = await client.query('SELECT * FROM category_codes WHERE code = $1', [formattedNewCode]);
       if (existing.rows.length > 0) {
         return res.status(409).json({ error: `รหัสหมวดหมู่ ${formattedNewCode} มีอยู่ในระบบแล้ว` });
       }
     }
 
-    const oldCat = await query('SELECT * FROM category_codes WHERE code = $1', [oldCode]);
+    const oldCat = await client.query('SELECT * FROM category_codes WHERE code = $1', [oldCode]);
     const oldName = oldCat.rows[0]?.name;
 
-    await query('BEGIN');
+    await client.query('BEGIN');
     if (formattedNewCode !== oldCode) {
-      await query('UPDATE category_codes SET code = $1, name = $2 WHERE code = $3', [formattedNewCode, name, oldCode]);
+      await client.query('UPDATE category_codes SET code = $1, name = $2 WHERE code = $3', [formattedNewCode, name, oldCode]);
     } else {
-      await query('UPDATE category_codes SET name = $1 WHERE code = $2', [name, oldCode]);
+      await client.query('UPDATE category_codes SET name = $1 WHERE code = $2', [name, oldCode]);
     }
 
     if (oldName && oldName !== name) {
-      await query('UPDATE products SET category = $1 WHERE category = $2', [name, oldName]);
+      await client.query('UPDATE products SET category = $1 WHERE category = $2', [name, oldName]);
     }
 
-    await query('COMMIT');
+    await client.query('COMMIT');
     res.json({ success: true, code: formattedNewCode, name });
   } catch (err) {
-    await query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(500).json({ error: 'Failed to update category code' });
+  } finally {
+    client.release();
   }
 });
 

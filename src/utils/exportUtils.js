@@ -30,8 +30,7 @@ export const formatExportDate = (dateVal) => {
  */
 export const exportDispensingHistory = (history = [], format = 'xlsx') => {
   if (!history || history.length === 0) {
-    alert('ไม่มีข้อมูลประวัติสำหรับส่งออก');
-    return;
+    return false;
   }
 
   const filename = `history_report_${new Date().toISOString().split('T')[0]}`;
@@ -127,8 +126,7 @@ export const exportDispensingHistory = (history = [], format = 'xlsx') => {
  */
 export const exportStockMatrix = (groupedStockMatrix = [], format = 'xlsx') => {
   if (!groupedStockMatrix || groupedStockMatrix.length === 0) {
-    alert('ไม่มีข้อมูลสำหรับส่งออก');
-    return;
+    return false;
   }
 
   const filename = `stock_report_${new Date().toISOString().split('T')[0]}`;
@@ -163,8 +161,7 @@ export const exportStockMatrix = (groupedStockMatrix = [], format = 'xlsx') => {
   });
 
   if (rows.length === 0) {
-    alert('ไม่มีข้อมูลสต็อกสินค้า');
-    return;
+    return false;
   }
 
   if (format === 'xlsx') {

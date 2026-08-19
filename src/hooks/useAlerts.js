@@ -24,7 +24,11 @@ export function useAlerts() {
             id: `out-${p.id}`,
             productId: p.id,
             productName: p.name,
+            product_code: p.product_code,
+            category: p.category || 'อื่นๆ',
             size: '-',
+            stock: 0,
+            threshold: threshold,
             type: 'danger',
             message: `สินค้า ${p.name} หมดสต็อกแล้ว`
           });
@@ -33,7 +37,11 @@ export function useAlerts() {
             id: `low-${p.id}`,
             productId: p.id,
             productName: p.name,
+            product_code: p.product_code,
+            category: p.category || 'อื่นๆ',
             size: '-',
+            stock: stock,
+            threshold: threshold,
             type: 'warning',
             message: `สินค้า ${p.name} ใกล้หมด (เหลือ ${stock} ชิ้น)`
           });
@@ -50,7 +58,11 @@ export function useAlerts() {
               id: `out-${p.id}-${size}`,
               productId: p.id,
               productName: p.name,
+              product_code: p.product_code,
+              category: p.category || 'อื่นๆ',
               size: size,
+              stock: 0,
+              threshold: threshold,
               type: 'danger',
               message: `สินค้า ${p.name} (ไซส์ ${size}) หมดสต็อกแล้ว`
             });
@@ -59,7 +71,11 @@ export function useAlerts() {
               id: `low-${p.id}-${size}`,
               productId: p.id,
               productName: p.name,
+              product_code: p.product_code,
+              category: p.category || 'อื่นๆ',
               size: size,
+              stock: stock,
+              threshold: threshold,
               type: 'warning',
               message: `สินค้า ${p.name} (ไซส์ ${size}) ใกล้หมด (เหลือ ${stock} ชิ้น)`
             });

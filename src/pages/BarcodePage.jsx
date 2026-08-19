@@ -4,11 +4,13 @@ import { useProducts } from '../hooks/useProducts';
 import { Modal } from '../components/common/Modal';
 import { ProductForm } from '../components/Products/ProductForm';
 import { useAppContext } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { Plus, Minus, Check, Box, ShoppingCart, Trash2, ArrowDownToLine, ArrowUpFromLine, RefreshCcw } from 'lucide-react';
 
 export function BarcodePage() {
   const { products, getProductByBarcode, addProduct } = useProducts();
   const { refreshProducts } = useAppContext();
+  const { toast } = useToast();
   
   const [mode, setMode] = useState(null); // 'IN' | 'OUT' | null
   
@@ -19,6 +21,7 @@ export function BarcodePage() {
     seller: '',
     note: ''
   });
+  const [formErrors, setFormErrors] = useState({});
 
   const [cart, setCart] = useState([]);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
@@ -27,8 +30,20 @@ export function BarcodePage() {
   
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+  const [warningMsg, setWarningMsg] = useState('');
   
   const manualInputRef = useRef(null);
+
+  const getItemAvailableStock = (product, size) => {
+    if (!product || !product.sizes) return 0;
+    const sizeData = product.sizes[size];
+    if (sizeData === undefined || sizeData === null) return 0;
+    return typeof sizeData === 'object' ? Number(sizeData.stock) || 0 : Number(sizeData) || 0;
+  };
+
+  const showWarning = (msg) => {
+    toast.warning(msg);
+  };
 
   const playBeep = () => {
     try {
@@ -74,14 +89,29 @@ export function BarcodePage() {
     }
 
     const cartItemId = `${product.id}_${targetSize}`;
+    const availableStock = getItemAvailableStock(product, targetSize);
+
+    // Stock check for OUT mode
+    if (mode === 'OUT') {
+      if (availableStock <= 0) {
+        showWarning(`สินค้า "${product.name}" ไซส์ ${targetSize} หมดสต็อก (คงเหลือ 0 ชิ้น)`);
+        return;
+      }
+    }
 
     setCart(prevCart => {
       const existingItemIndex = prevCart.findIndex(item => item.id === cartItemId);
       if (existingItemIndex >= 0) {
+        const currentQty = prevCart[existingItemIndex].quantity;
+        if (mode === 'OUT' && currentQty + 1 > availableStock) {
+          showWarning(`สินค้า "${product.name}" ไซส์ ${targetSize} สต็อกคงเหลือมีเพียง ${availableStock} ชิ้น (ในตะกร้ามีแล้ว ${currentQty} ชิ้น)`);
+          return prevCart;
+        }
+
         const newCart = [...prevCart];
         newCart[existingItemIndex] = {
           ...newCart[existingItemIndex],
-          quantity: newCart[existingItemIndex].quantity + 1
+          quantity: currentQty + 1
         };
         return newCart;
       } else {
@@ -101,7 +131,7 @@ export function BarcodePage() {
       if (manualInputRef.current) manualInputRef.current.focus();
     }, 50);
 
-  }, [getProductByBarcode]);
+  }, [getProductByBarcode, mode]);
 
   const handleScanError = (error) => {};
 
@@ -114,8 +144,18 @@ export function BarcodePage() {
   };
 
   const updateCartItemQuantity = (cartItemId, newQty) => {
-    const qty = Math.max(1, parseInt(newQty) || 1);
-    setCart(prev => prev.map(item => item.id === cartItemId ? { ...item, quantity: qty } : item));
+    const item = cart.find(i => i.id === cartItemId);
+    if (!item) return;
+
+    let qty = Math.max(1, parseInt(newQty) || 1);
+    if (mode === 'OUT') {
+      const availableStock = getItemAvailableStock(item.product, item.matchedSize);
+      if (qty > availableStock) {
+        qty = Math.max(1, availableStock);
+        showWarning(`สินค้า "${item.product.name}" ไซส์ ${item.matchedSize} มีสต็อกคงเหลือเพียง ${availableStock} ชิ้น`);
+      }
+    }
+    setCart(prev => prev.map(i => i.id === cartItemId ? { ...i, quantity: qty } : i));
   };
 
   const removeCartItem = (cartItemId) => {
@@ -124,6 +164,35 @@ export function BarcodePage() {
 
   const processBulkDispense = async () => {
     if (cart.length === 0) return;
+
+    const errs = {};
+    if (!sharedData.dispensed_date) {
+      errs.dispensed_date = 'กรุณาระบุวันที่';
+    }
+    if (mode === 'OUT' && (!sharedData.hn || !sharedData.hn.trim())) {
+      errs.hn = 'กรุณาระบุรหัส HN คนไข้';
+    }
+    if (!sharedData.seller || !sharedData.seller.trim()) {
+      errs.seller = 'กรุณาระบุชื่อผู้ทำรายการ';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      toast.warning(Object.values(errs)[0]);
+      return;
+    }
+
+    // Validate stock before sending in OUT mode
+    if (mode === 'OUT') {
+      for (const item of cart) {
+        const availableStock = getItemAvailableStock(item.product, item.matchedSize);
+        if (item.quantity > availableStock) {
+          toast.error(`สินค้า "${item.product.name}" ไซส์ ${item.matchedSize} มีสต็อกคงเหลือเพียง ${availableStock} ชิ้น แต่มียอดเบิก ${item.quantity} ชิ้น`);
+          return;
+        }
+      }
+    }
+
     setIsSaving(true);
     setSaveSuccessMsg('');
 
@@ -146,20 +215,20 @@ export function BarcodePage() {
       });
 
       if (res.ok) {
-        setSaveSuccessMsg(`บันทึก${mode === 'IN' ? 'รับเข้า' : 'เบิกออก'}สำเร็จแล้ว (${cart.length} รายการ)`);
+        toast.success(`บันทึก${mode === 'IN' ? 'รับเข้า' : 'เบิกออก'}สำเร็จแล้ว (${cart.length} รายการ)`);
         setCart([]);
-        setSharedData(prev => ({ ...prev, hn: '', note: '' }));
+        setSharedData(prev => ({ ...prev, hn: '', seller: '', note: '' }));
+        setFormErrors({});
         refreshProducts();
         
-        setTimeout(() => setSaveSuccessMsg(''), 3000);
         if (manualInputRef.current) manualInputRef.current.focus();
       } else {
-        const errorData = await res.json();
-        alert(errorData.error || 'เกิดข้อผิดพลาดในการบันทึก');
+        const errorData = await res.json().catch(() => ({}));
+        toast.error(errorData.error || 'เกิดข้อผิดพลาดในการบันทึก');
       }
     } catch (err) {
       console.error('Failed to process bulk dispense', err);
-      alert('เกิดข้อผิดพลาดในการบันทึก');
+      toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     } finally {
       setIsSaving(false);
     }
@@ -303,18 +372,74 @@ export function BarcodePage() {
           <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: '0 0 16px 0', color: 'var(--text-primary)' }}>ข้อมูลรายการ</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>วันที่</label>
-              <input type="date" value={sharedData.dispensed_date} onChange={e => setSharedData(p => ({...p, dispensed_date: e.target.value}))} style={sharedInputStyle} />
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                วันที่ <span style={{color: 'var(--danger)'}}>*</span>
+              </label>
+              <input 
+                type="date" 
+                value={sharedData.dispensed_date} 
+                onChange={e => {
+                  setSharedData(p => ({...p, dispensed_date: e.target.value}));
+                  if (formErrors.dispensed_date) setFormErrors(p => ({...p, dispensed_date: null}));
+                }} 
+                style={{
+                  ...sharedInputStyle,
+                  borderColor: formErrors.dispensed_date ? 'var(--danger)' : 'var(--border)'
+                }} 
+              />
+              {formErrors.dispensed_date && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>
+                  {formErrors.dispensed_date}
+                </span>
+              )}
             </div>
             {mode === 'OUT' && (
               <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>HN คนไข้</label>
-                <input type="text" placeholder="รหัสคนไข้" value={sharedData.hn} onChange={e => setSharedData(p => ({...p, hn: e.target.value}))} style={sharedInputStyle} />
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                  HN คนไข้ <span style={{color: 'var(--danger)'}}>*</span>
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="รหัสคนไข้" 
+                  value={sharedData.hn} 
+                  onChange={e => {
+                    setSharedData(p => ({...p, hn: e.target.value}));
+                    if (formErrors.hn) setFormErrors(p => ({...p, hn: null}));
+                  }} 
+                  style={{
+                    ...sharedInputStyle,
+                    borderColor: formErrors.hn ? 'var(--danger)' : 'var(--border)'
+                  }} 
+                />
+                {formErrors.hn && (
+                  <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>
+                    {formErrors.hn}
+                  </span>
+                )}
               </div>
             )}
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>ผู้ทำรายการ</label>
-              <input type="text" placeholder="ชื่อพนักงาน" value={sharedData.seller} onChange={e => setSharedData(p => ({...p, seller: e.target.value}))} style={sharedInputStyle} />
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                ผู้ทำรายการ <span style={{color: 'var(--danger)'}}>*</span>
+              </label>
+              <input 
+                type="text" 
+                placeholder="ชื่อพนักงาน" 
+                value={sharedData.seller} 
+                onChange={e => {
+                  setSharedData(p => ({...p, seller: e.target.value}));
+                  if (formErrors.seller) setFormErrors(p => ({...p, seller: null}));
+                }} 
+                style={{
+                  ...sharedInputStyle,
+                  borderColor: formErrors.seller ? 'var(--danger)' : 'var(--border)'
+                }} 
+              />
+              {formErrors.seller && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>
+                  {formErrors.seller}
+                </span>
+              )}
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>หมายเหตุ</label>
@@ -335,36 +460,103 @@ export function BarcodePage() {
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-tertiary)' }}>
                 ยังไม่มีสินค้าในตะกร้า<br/><span style={{ fontSize: '0.875rem' }}>สแกนบาร์โค้ดเพื่อเพิ่มรายการ</span>
               </div>
-            ) : cart.map((item) => (
-              <div key={item.id} style={{ display: 'flex', flexDirection: 'column', padding: '12px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{item.product.name}</div>
-                  <button onClick={() => removeCartItem(item.id)} style={{ padding: '4px', backgroundColor: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', marginTop: '-4px', marginRight: '-4px' }}>
-                    <Trash2 size={16} />
-                  </button>
+            ) : cart.map((item) => {
+              const availableStock = getItemAvailableStock(item.product, item.matchedSize);
+              const isOverStock = mode === 'OUT' && item.quantity > availableStock;
+              const isAtMaxStock = mode === 'OUT' && item.quantity >= availableStock;
+
+              return (
+                <div 
+                  key={item.id} 
+                  style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    padding: '12px', 
+                    backgroundColor: isOverStock ? 'var(--danger-bg)' : 'var(--bg-main)', 
+                    border: `1px solid ${isOverStock ? 'var(--danger)' : 'var(--border)'}`, 
+                    borderRadius: 'var(--radius-md)' 
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{item.product.name}</div>
+                    <button onClick={() => removeCartItem(item.id)} style={{ padding: '4px', backgroundColor: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', marginTop: '-4px', marginRight: '-4px' }}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 8px 0' }}>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                      ไซส์: <strong style={{ color: 'var(--text-primary)' }}>{item.matchedSize}</strong>
+                    </div>
+                    {mode === 'OUT' && (
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)',
+                        backgroundColor: availableStock > 0 ? 'var(--success-bg)' : 'var(--danger-bg)',
+                        color: availableStock > 0 ? 'var(--success)' : 'var(--danger)'
+                      }}>
+                        {availableStock > 0 ? `สต็อก: ${availableStock}` : 'หมดสต็อก'}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button 
+                        type="button" 
+                        onClick={() => updateCartItemQuantity(item.id, item.quantity - 1)} 
+                        style={{ padding: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--text-primary)' }}
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => updateCartItemQuantity(item.id, e.target.value)}
+                        style={{ 
+                          width: '60px', 
+                          textAlign: 'center', 
+                          fontSize: '1rem', 
+                          fontWeight: 600, 
+                          padding: '4px', 
+                          border: `1px solid ${isOverStock ? 'var(--danger)' : 'var(--border)'}`, 
+                          borderRadius: 'var(--radius-sm)', 
+                          color: isOverStock ? 'var(--danger)' : 'var(--primary)', 
+                          backgroundColor: 'white' 
+                        }}
+                        min="1"
+                        max={mode === 'OUT' ? availableStock : undefined}
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)} 
+                        disabled={isAtMaxStock}
+                        style={{ 
+                          padding: '6px', 
+                          backgroundColor: isAtMaxStock ? 'var(--bg-surface)' : 'var(--primary-light)', 
+                          border: `1px solid ${isAtMaxStock ? 'var(--border)' : 'var(--primary)'}`, 
+                          borderRadius: 'var(--radius-sm)', 
+                          color: isAtMaxStock ? 'var(--text-tertiary)' : 'var(--primary)', 
+                          cursor: isAtMaxStock ? 'not-allowed' : 'pointer',
+                          opacity: isAtMaxStock ? 0.6 : 1
+                        }}
+                        title={isAtMaxStock ? 'ถึงจำนวนสต็อกคงเหลือสูงสุดแล้ว' : 'เพิ่มจำนวน'}
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+
+                    {isOverStock && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 600 }}>
+                        เกินสต็อกคงเหลือ!
+                      </span>
+                    )}
+                  </div>
                 </div>
-                
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                  ไซส์: <strong style={{ color: 'var(--text-primary)' }}>{item.matchedSize}</strong>
-                </div>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button type="button" onClick={() => updateCartItemQuantity(item.id, item.quantity - 1)} style={{ padding: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--text-primary)' }}>
-                    <Minus size={14} />
-                  </button>
-                  <input
-                    type="number"
-                    value={item.quantity}
-                    onChange={(e) => updateCartItemQuantity(item.id, e.target.value)}
-                    style={{ width: '60px', textAlign: 'center', fontSize: '1rem', fontWeight: 600, padding: '4px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--primary)', backgroundColor: 'white' }}
-                    min="1"
-                  />
-                  <button type="button" onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)} style={{ padding: '6px', backgroundColor: 'var(--primary-light)', border: '1px solid var(--primary)', borderRadius: 'var(--radius-sm)', color: 'var(--primary)', cursor: 'pointer' }}>
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div style={{ padding: '16px', borderTop: '1px solid var(--border)', backgroundColor: 'var(--bg-main)' }}>
@@ -385,6 +577,12 @@ export function BarcodePage() {
             </button>
           </div>
         </div>
+
+        {warningMsg && (
+          <div style={{ padding: '14px 16px', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            ⚠️ {warningMsg}
+          </div>
+        )}
 
         {saveSuccessMsg && (
           <div style={{ padding: '16px', backgroundColor: 'var(--success-bg)', color: 'var(--success)', borderRadius: 'var(--radius-md)', textAlign: 'center', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>

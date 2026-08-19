@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useToast } from '../../context/ToastContext';
 import { Info, Plus, X, Trash2, Edit2, Folder, Ruler, Tag, AlertCircle } from 'lucide-react';
 import { Modal } from './Modal';
 
 export function ReferenceTable() {
   const { products } = useAppContext();
+  const { toast } = useToast();
   const [categoryCodes, setCategoryCodes] = useState([]);
   const [sizeCodes, setSizeCodes] = useState([]);
 
@@ -18,6 +20,9 @@ export function ReferenceTable() {
 
   const [editingSize, setEditingSize] = useState(null);
   const [editingSizeError, setEditingSizeError] = useState('');
+
+  // Delete modal state
+  const [deleteTarget, setDeleteTarget] = useState(null); // { type: 'cat' | 'size', code: string, name: string }
 
   useEffect(() => {
     fetchData();
@@ -84,16 +89,15 @@ export function ReferenceTable() {
       setNewCatCode('');
       setNewCatName('');
       setCatError('');
+      toast.success(`เพิ่มหมวดหมู่ "${rawName}" สำเร็จ`);
       fetchData();
     } catch (err) {
       setCatError(err.message || 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
     }
   };
 
-  const handleDeleteCategoryCode = async (code) => {
-    if (!window.confirm(`แน่ใจหรือไม่ที่จะลบรหัสหมวดหมู่ ${code}?`)) return;
-    await fetch(`/api/category-codes/${code}`, { method: 'DELETE' });
-    fetchData();
+  const handleDeleteCategoryCode = (c) => {
+    setDeleteTarget({ type: 'category', code: c.code, name: c.name });
   };
 
   // Start Edit Category
@@ -150,6 +154,7 @@ export function ReferenceTable() {
         throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึก');
       }
       setEditingCat(null);
+      toast.success(`แก้ไขหมวดหมู่ "${rawName}" สำเร็จ`);
       fetchData();
     } catch (err) {
       setEditingCatError(err.message || 'บันทึกการแก้ไขไม่สำเร็จ');
@@ -202,16 +207,35 @@ export function ReferenceTable() {
       setNewSizeCode('');
       setNewSizeName('');
       setSizeError('');
+      toast.success(`เพิ่มไซส์ "${rawName}" สำเร็จ`);
       fetchData();
     } catch (err) {
       setSizeError(err.message || 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
     }
   };
 
-  const handleDeleteSizeCode = async (code) => {
-    if (!window.confirm(`แน่ใจหรือไม่ที่จะลบรหัสไซส์ ${code}?`)) return;
-    await fetch(`/api/size-codes/${code}`, { method: 'DELETE' });
-    fetchData();
+  const handleDeleteSizeCode = (s) => {
+    setDeleteTarget({ type: 'size', code: s.code, name: s.name });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const url = deleteTarget.type === 'category'
+        ? `/api/category-codes/${deleteTarget.code}`
+        : `/api/size-codes/${deleteTarget.code}`;
+      const res = await fetch(url, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'ลบไม่สำเร็จ');
+      }
+      toast.success(`ลบ${deleteTarget.type === 'category' ? 'หมวดหมู่' : 'ไซส์'} "${deleteTarget.name}" สำเร็จ`);
+      fetchData();
+    } catch (err) {
+      toast.error(err.message || 'เกิดข้อผิดพลาดในการลบ');
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   // Start Edit Size
@@ -268,6 +292,7 @@ export function ReferenceTable() {
         throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึก');
       }
       setEditingSize(null);
+      toast.success(`แก้ไขไซส์ "${rawName}" สำเร็จ`);
       fetchData();
     } catch (err) {
       setEditingSizeError(err.message || 'บันทึกการแก้ไขไม่สำเร็จ');
@@ -337,9 +362,9 @@ export function ReferenceTable() {
                   setNewCatCode(e.target.value);
                   if (catError) setCatError('');
                 }} 
-                placeholder="รหัส (เช่น 10)" 
+                placeholder="รหัส (เช่น 10) *" 
                 maxLength={2} 
-                style={{ width: '100px', padding: '8px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${catError ? 'var(--danger)' : 'var(--border)'}` }} 
+                style={{ width: '110px', padding: '8px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${catError ? 'var(--danger)' : 'var(--border)'}` }} 
               />
               <input 
                 type="text" 
@@ -348,7 +373,7 @@ export function ReferenceTable() {
                   setNewCatName(e.target.value);
                   if (catError) setCatError('');
                 }} 
-                placeholder="ชื่อหมวดหมู่ (เช่น เสื้อยืด)" 
+                placeholder="ชื่อหมวดหมู่ (เช่น เสื้อยืด) *" 
                 style={{ flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${catError ? 'var(--danger)' : 'var(--border)'}` }} 
               />
               <button 
@@ -391,7 +416,7 @@ export function ReferenceTable() {
                           <Edit2 size={16} />
                         </button>
                         <button 
-                          onClick={() => handleDeleteCategoryCode(c.code)} 
+                          onClick={() => handleDeleteCategoryCode(c)} 
                           style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }} 
                           title="ลบรหัสนี้"
                         >
@@ -453,9 +478,9 @@ export function ReferenceTable() {
                   setNewSizeCode(e.target.value);
                   if (sizeError) setSizeError('');
                 }} 
-                placeholder="รหัส (เช่น 01)" 
+                placeholder="รหัส (เช่น 01) *" 
                 maxLength={2} 
-                style={{ width: '100px', padding: '8px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${sizeError ? 'var(--danger)' : 'var(--border)'}` }} 
+                style={{ width: '110px', padding: '8px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${sizeError ? 'var(--danger)' : 'var(--border)'}` }} 
               />
               <input 
                 type="text" 
@@ -464,7 +489,7 @@ export function ReferenceTable() {
                   setNewSizeName(e.target.value);
                   if (sizeError) setSizeError('');
                 }} 
-                placeholder="ชื่อไซส์ (เช่น XS)" 
+                placeholder="ชื่อไซส์ (เช่น XS) *" 
                 style={{ flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${sizeError ? 'var(--danger)' : 'var(--border)'}` }} 
               />
               <button 
@@ -497,7 +522,7 @@ export function ReferenceTable() {
                       <Edit2 size={14} />
                     </button>
                     <button 
-                      onClick={() => handleDeleteSizeCode(s.code)} 
+                      onClick={() => handleDeleteSizeCode(s)} 
                       style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }} 
                       title="ลบรหัสนี้"
                     >
@@ -593,7 +618,7 @@ export function ReferenceTable() {
 
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                รหัสหมวดหมู่ (CC - 2 หลัก)
+                รหัสหมวดหมู่ (CC - 2 หลัก) <span style={{color: 'var(--danger)'}}>*</span>
               </label>
               <input
                 type="text"
@@ -620,7 +645,7 @@ export function ReferenceTable() {
 
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                ชื่อหมวดหมู่
+                ชื่อหมวดหมู่ <span style={{color: 'var(--danger)'}}>*</span>
               </label>
               <input
                 type="text"
@@ -705,7 +730,7 @@ export function ReferenceTable() {
 
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                รหัสไซส์ (SS - 2 หลัก)
+                รหัสไซส์ (SS - 2 หลัก) <span style={{color: 'var(--danger)'}}>*</span>
               </label>
               <input
                 type="text"
@@ -732,7 +757,7 @@ export function ReferenceTable() {
 
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                ชื่อไซส์
+                ชื่อไซส์ <span style={{color: 'var(--danger)'}}>*</span>
               </label>
               <input
                 type="text"
@@ -786,6 +811,72 @@ export function ReferenceTable() {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* Custom Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title={`ยืนยันการลบ${deleteTarget?.type === 'category' ? 'หมวดหมู่' : 'ไซส์'}`}
+      >
+        {deleteTarget && (
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--danger-bg)',
+              color: 'var(--danger)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px auto'
+            }}>
+              <Trash2 size={28} />
+            </div>
+            
+            <p style={{ margin: '0 0 8px 0', fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+              คุณแน่ใจหรือไม่ว่าต้องการลบ {deleteTarget.type === 'category' ? 'หมวดหมู่' : 'ไซส์'} "{deleteTarget.name}"?
+            </p>
+            
+            <p style={{ margin: '0 0 24px 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+              รหัส: <code style={{ fontWeight: 700, color: 'var(--primary)' }}>{deleteTarget.code}</code>
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontWeight: 500
+                }}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                style={{
+                  padding: '10px 24px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  backgroundColor: 'var(--danger)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                ยืนยันการลบ
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
     </div>

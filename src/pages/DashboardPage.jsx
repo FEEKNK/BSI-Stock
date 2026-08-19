@@ -6,10 +6,12 @@ import { StatsCard } from '../components/Dashboard/StatsCard';
 import { StockChart } from '../components/Dashboard/StockChart';
 import { Badge } from '../components/common/Badge';
 import { exportStockReportToExcel } from '../utils/excel';
+import { useToast } from '../context/ToastContext';
 
 export function DashboardPage() {
   const { stats, lowStockItems } = useDashboard();
   const { products, settings } = useAppContext();
+  const { toast } = useToast();
 
   // Build the stock matrix (like the paper sheet)
   const groupedStockMatrix = useMemo(() => {
@@ -18,30 +20,33 @@ export function DashboardPage() {
     
     // Group by category
     const grouped = {};
-    products.forEach(p => {
-      const cat = p.category || 'ไม่มีหมวดหมู่';
+    (products || []).forEach(p => {
+      const cat = p.category || 'อื่นๆ';
       if (!grouped[cat]) grouped[cat] = { products: [], sizesSet: new Set() };
       grouped[cat].products.push(p);
-      if (p.sizes) {
-        Object.keys(p.sizes).forEach(s => grouped[cat].sizesSet.add(s));
-      }
+
+      const sizes = p.sizes || {};
+      Object.keys(sizes).forEach(s => grouped[cat].sizesSet.add(s));
     });
 
-    // Format and sort each group
-    const result = [];
-    Object.keys(grouped).sort().forEach(cat => {
-      const data = grouped[cat];
-      
-      data.products.sort((a, b) => {
-        const idxA = paperOrder.indexOf(a.name);
-        const idxB = paperOrder.indexOf(b.name);
-        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-        if (idxA !== -1) return -1;
-        if (idxB !== -1) return 1;
-        return (a.product_code || '').localeCompare(b.product_code || '');
-      });
+    // Custom sorting based on paper stock sheet requirement
+    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+      const idxA = paperOrder.indexOf(a);
+      const idxB = paperOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
 
-      const allSizes = [...data.sizesSet].sort((a, b) => {
+    const result = [];
+    sortedCategories.forEach(cat => {
+      const data = grouped[cat];
+      // Sort products by name
+      data.products.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+      // Sort sizes
+      const allSizes = Array.from(data.sizesSet).sort((a, b) => {
         const ia = sizeOrder.indexOf(a);
         const ib = sizeOrder.indexOf(b);
         if (ia === -1 && ib === -1) return a.localeCompare(b);
@@ -59,7 +64,12 @@ export function DashboardPage() {
   const [activeCategoryTab, setActiveCategoryTab] = useState('ทั้งหมด');
 
   const handleExportExcel = () => {
-    exportStockReportToExcel(groupedStockMatrix, products);
+    const success = exportStockReportToExcel(groupedStockMatrix, products);
+    if (success !== false) {
+      toast.success('ส่งออกรายงานสต็อกสินค้าสำเร็จ');
+    } else {
+      toast.warning('ไม่มีข้อมูลสต็อกสำหรับส่งออก');
+    }
   };
 
   return (
@@ -137,7 +147,7 @@ export function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {lowStockItems.slice(0, 10).map(item => (
+                  {lowStockItems.map(item => (
                     <tr key={item.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                       <td style={{ padding: '10px 0', fontWeight: 500, color: 'var(--text-primary)' }}>
                         <div>{item.name}</div>
