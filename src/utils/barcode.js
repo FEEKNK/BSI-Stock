@@ -4,6 +4,7 @@ const CATEGORY_CODE_MAP = {
   'ชุดชั้นใน': '11',
   'กางเกงใน': '20',
   'อุปกรณ์เสริม': '30',
+  'อื่นๆ': '90',
 };
 
 // Size name -> 2-digit code mapping  
@@ -50,10 +51,10 @@ export function getSizeCode(sizeName) {
  *   NNNNN = 5-digit running number
  */
 export function buildStructuredBarcode(categoryCode, productCode, sizeCode, runningNumber) {
-  const cc = String(categoryCode).padStart(2, '0');
-  const ppp = String(productCode).padStart(3, '0');
-  const ss = String(sizeCode).padStart(2, '0');
-  const nnnnn = String(runningNumber).padStart(5, '0');
+  const cc = String(categoryCode || '90').padStart(2, '0');
+  const ppp = String(productCode || '000').padStart(3, '0');
+  const ss = String(sizeCode || '99').padStart(2, '0');
+  const nnnnn = String(runningNumber || '00001').padStart(5, '0');
   return `${cc}${ppp}${ss}${nnnnn}`;
 }
 
@@ -68,9 +69,14 @@ export async function generateStructuredBarcode(categoryName, productCode, sizeN
 
   try {
     const res = await fetch('/api/barcode-counter/next', { method: 'POST' });
-    const { value } = await res.json();
-    return buildStructuredBarcode(cc, ppp, ss, value);
-  } catch {
+    if (!res.ok) throw new Error('API failed');
+    const data = await res.json();
+    if (!data || data.value === undefined || data.value === null) {
+      throw new Error('Invalid counter response');
+    }
+    return buildStructuredBarcode(cc, ppp, ss, data.value);
+  } catch (err) {
+    console.warn('Barcode generation API fallback:', err);
     // Fallback: use last 5 digits of timestamp
     const fallback = Date.now().toString().slice(-5);
     return buildStructuredBarcode(cc, ppp, ss, fallback);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Printer, Download, Upload, SlidersHorizontal } from 'lucide-react';
+import { Plus, Search, Filter, Printer, Download, Upload, SlidersHorizontal, Sparkles, AlertCircle, Edit3 } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { ProductList } from '../components/Products/ProductList';
 import { ProductForm } from '../components/Products/ProductForm';
@@ -9,6 +9,7 @@ import { BarcodeGenerator } from '../components/Barcode/BarcodeGenerator';
 import { PrintMasterSheetModal } from '../components/Products/PrintMasterSheetModal';
 import { ImportProductsModal } from '../components/Products/ImportProductsModal';
 import { exportProductsToExcel } from '../utils/excel';
+import { generateStructuredBarcode } from '../utils/barcode';
 import { useToast } from '../context/ToastContext';
 
 export function ProductsPage() {
@@ -85,6 +86,66 @@ export function ProductsPage() {
     backgroundColor: 'var(--bg-surface)',
     color: 'var(--text-primary)',
     width: '100%'
+  };
+
+  const [isGeneratingBarcodes, setIsGeneratingBarcodes] = useState(false);
+
+  const missingBarcodeSizes = productToPrint?.sizes 
+    ? Object.entries(productToPrint.sizes).filter(([_, data]) => {
+        const b = typeof data === 'object' ? data?.barcode : productToPrint.barcode;
+        return !b || !String(b).trim();
+      })
+    : [];
+
+  const handleGenerateBarcodeForSize = async (size) => {
+    if (!productToPrint) return;
+    try {
+      setIsGeneratingBarcodes(true);
+      const newBarcode = await generateStructuredBarcode(productToPrint.category, productToPrint.product_code || '000', size);
+      const currentSizes = { ...productToPrint.sizes };
+      const curData = currentSizes[size];
+      const updatedData = typeof curData === 'object' ? { ...curData, barcode: newBarcode } : { stock: Number(curData) || 0, barcode: newBarcode };
+      const updatedSizes = { ...currentSizes, [size]: updatedData };
+      
+      const updatedProduct = {
+        ...productToPrint,
+        sizes: updatedSizes
+      };
+      
+      await updateProduct(productToPrint.id, updatedProduct);
+      setProductToPrint(updatedProduct);
+      toast.success(`สร้างบาร์โค้ดสำหรับไซส์ ${size} สำเร็จ (${newBarcode})`);
+    } catch (err) {
+      console.error(err);
+      toast.error('ไม่สามารถสร้างบาร์โค้ดได้');
+    } finally {
+      setIsGeneratingBarcodes(false);
+    }
+  };
+
+  const handleGenerateAllMissingBarcodes = async () => {
+    if (!productToPrint || missingBarcodeSizes.length === 0) return;
+    try {
+      setIsGeneratingBarcodes(true);
+      const updatedSizes = { ...productToPrint.sizes };
+      for (const [size, data] of missingBarcodeSizes) {
+        const newBarcode = await generateStructuredBarcode(productToPrint.category, productToPrint.product_code || '000', size);
+        const curData = updatedSizes[size];
+        updatedSizes[size] = typeof curData === 'object' ? { ...curData, barcode: newBarcode } : { stock: Number(curData) || 0, barcode: newBarcode };
+      }
+      const updatedProduct = {
+        ...productToPrint,
+        sizes: updatedSizes
+      };
+      await updateProduct(productToPrint.id, updatedProduct);
+      setProductToPrint(updatedProduct);
+      toast.success(`สร้างบาร์โค้ดสำเร็จ ${missingBarcodeSizes.length} ไซส์`);
+    } catch (err) {
+      console.error(err);
+      toast.error('ไม่สามารถสร้างบาร์โค้ดได้');
+    } finally {
+      setIsGeneratingBarcodes(false);
+    }
   };
 
   return (
@@ -293,19 +354,107 @@ export function ProductsPage() {
         title={`ปรินต์บาร์โค้ด - ${productToPrint?.name}`}
       >
         <div style={{ textAlign: 'center' }}>
-          <p className="no-print" style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+          <p className="no-print" style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
             ระบบจะจัดเรียงรูปบาร์โค้ดของทุกไซส์สำหรับสินค้านี้ คุณสามารถกดสั่งปรินต์ลงกระดาษ A4 ได้ทันที
           </p>
+
+          {/* Warning banner if some sizes lack barcodes */}
+          {missingBarcodeSizes.length > 0 && (
+            <div className="no-print" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 16px',
+              backgroundColor: '#fffbeb',
+              border: '1px solid #f59e0b',
+              borderRadius: 'var(--radius-md)',
+              marginBottom: '16px',
+              textAlign: 'left',
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={18} style={{ color: '#d97706', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.875rem', color: '#92400e', fontWeight: 500 }}>
+                  มี {missingBarcodeSizes.length} ไซส์ที่ยังไม่มีรหัสบาร์โค้ด
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleGenerateAllMissingBarcodes}
+                disabled={isGeneratingBarcodes}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  backgroundColor: '#d97706',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  cursor: isGeneratingBarcodes ? 'wait' : 'pointer'
+                }}
+              >
+                <Sparkles size={14} />
+                {isGeneratingBarcodes ? 'กำลังสร้าง...' : 'สร้างบาร์โค้ดให้ครบทั้งหมด'}
+              </button>
+            </div>
+          )}
 
           <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '16px', backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-md)' }} className="no-print">
             {productToPrint && productToPrint.sizes && Object.keys(productToPrint.sizes).length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {Object.entries(productToPrint.sizes).map(([size, data]) => (
-                  <div key={size} style={{ padding: '16px', backgroundColor: 'white', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
-                    <h4 style={{ margin: '0 0 12px 0' }}>ไซส์: {size}</h4>
-                    <BarcodeGenerator value={typeof data === 'object' ? data.barcode : ''} />
-                  </div>
-                ))}
+                {Object.entries(productToPrint.sizes).map(([size, data]) => {
+                  const barcode = typeof data === 'object' ? data?.barcode : (productToPrint.barcode || '');
+                  const hasBarcode = Boolean(barcode && String(barcode).trim());
+
+                  return (
+                    <div key={size} style={{ padding: '16px', backgroundColor: 'white', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+                      <h4 style={{ margin: '0 0 12px 0' }}>ไซส์: {size}</h4>
+                      {hasBarcode ? (
+                        <BarcodeGenerator value={barcode} />
+                      ) : (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '16px',
+                          backgroundColor: 'var(--bg-main)',
+                          border: '1px dashed var(--border)',
+                          borderRadius: 'var(--radius-sm)'
+                        }}>
+                          <span style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>
+                            ⚠️ ยังไม่ได้กำหนดรหัสบาร์โค้ดสำหรับไซส์นี้
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateBarcodeForSize(size)}
+                            disabled={isGeneratingBarcodes}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '8px 16px',
+                              backgroundColor: 'var(--primary)',
+                              color: '#fff',
+                              borderRadius: 'var(--radius-sm)',
+                              border: 'none',
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              cursor: isGeneratingBarcodes ? 'wait' : 'pointer'
+                            }}
+                          >
+                            <Sparkles size={14} />
+                            {isGeneratingBarcodes ? 'กำลังสร้าง...' : 'สร้างบาร์โค้ดอัตโนมัติ'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p>ไม่มีบาร์โค้ดของไซส์ใดๆ สำหรับสินค้านี้</p>
@@ -315,14 +464,14 @@ export function ProductsPage() {
           <div className="no-print" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '24px' }}>
             <button
               onClick={() => setProductToPrint(null)}
-              style={{ padding: '10px 24px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', fontWeight: 600, color: 'var(--text-secondary)' }}
+              style={{ padding: '10px 24px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}
             >
               ปิดหน้าต่าง
             </button>
             <button
               onClick={() => window.print()}
               disabled={!productToPrint || !productToPrint.sizes || Object.keys(productToPrint.sizes).length === 0}
-              style={{ padding: '10px 24px', backgroundColor: 'var(--primary)', border: 'none', borderRadius: 'var(--radius-md)', fontWeight: 600, color: '#fff', opacity: (!productToPrint || !productToPrint.sizes || Object.keys(productToPrint.sizes).length === 0) ? 0.5 : 1 }}
+              style={{ padding: '10px 24px', backgroundColor: 'var(--primary)', border: 'none', borderRadius: 'var(--radius-md)', fontWeight: 600, color: '#fff', opacity: (!productToPrint || !productToPrint.sizes || Object.keys(productToPrint.sizes).length === 0) ? 0.5 : 1, cursor: 'pointer' }}
             >
               สั่งปรินต์
             </button>

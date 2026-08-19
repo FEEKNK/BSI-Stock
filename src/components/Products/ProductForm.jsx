@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SizeSelector } from './SizeSelector';
 import { validateProduct } from '../../utils/validators';
-import { generateBarcodeValue } from '../../utils/barcode';
+import { generateBarcodeValue, generateStructuredBarcode } from '../../utils/barcode';
 import { useAppContext } from '../../context/AppContext';
 import { BarcodeScanner } from '../Barcode/BarcodeScanner';
 import { Modal } from '../common/Modal';
@@ -53,7 +53,7 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
     setFormData(prev => ({ ...prev, sizes: newSizes }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validation = validateProduct(formData);
     
@@ -62,13 +62,26 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
       return;
     }
 
-    const totalStock = Object.values(formData.sizes).reduce((sum, sizeData) => {
+    // Ensure all sizes have a valid barcode before submitting
+    const updatedSizes = { ...formData.sizes };
+    for (const [sizeName, sData] of Object.entries(updatedSizes)) {
+      const currentBarcode = typeof sData === 'object' ? sData?.barcode : '';
+      if (!currentBarcode || !String(currentBarcode).trim()) {
+        const generated = await generateStructuredBarcode(formData.category, formData.product_code || '000', sizeName);
+        updatedSizes[sizeName] = typeof sData === 'object' 
+          ? { ...sData, barcode: generated }
+          : { stock: Number(sData) || 0, barcode: generated };
+      }
+    }
+
+    const totalStock = Object.values(updatedSizes).reduce((sum, sizeData) => {
       const stock = typeof sizeData === 'number' || typeof sizeData === 'string' ? sizeData : sizeData?.stock;
       return sum + (Number(stock) || 0);
     }, 0);
     
     onSubmit({
       ...formData,
+      sizes: updatedSizes,
       totalStock
     });
   };

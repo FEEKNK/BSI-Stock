@@ -5,7 +5,7 @@ import { Modal } from '../components/common/Modal';
 import { ProductForm } from '../components/Products/ProductForm';
 import { useAppContext } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Minus, Check, Box, ShoppingCart, Trash2, ArrowDownToLine, ArrowUpFromLine, RefreshCcw } from 'lucide-react';
+import { Plus, Minus, Check, Box, ShoppingCart, Trash2, ArrowDownToLine, ArrowUpFromLine, RefreshCcw, Camera, CameraOff } from 'lucide-react';
 
 export function BarcodePage() {
   const { products, getProductByBarcode, addProduct } = useProducts();
@@ -27,6 +27,7 @@ export function BarcodePage() {
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [newProductBarcode, setNewProductBarcode] = useState('');
   const [manualBarcode, setManualBarcode] = useState('');
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
@@ -353,12 +354,61 @@ export function BarcodePage() {
               </button>
             </form>
 
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', marginTop: '16px' }}>
               <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--bg-surface)', padding: '0 12px', color: 'var(--text-tertiary)', fontSize: '0.875rem', zIndex: 1 }}>
-                หรือใช้กล้อง
+                หรือใช้กล้องเว็บแคม
               </div>
-              <div style={{ borderTop: '1px solid var(--border)', margin: '0 0 24px 0' }}></div>
-              <BarcodeScanner elementId="page-barcode-scanner" onScan={handleScanSuccess} onError={handleScanError} />
+              <div style={{ borderTop: '1px solid var(--border)', margin: '0 0 20px 0' }}></div>
+              
+              {isCameraOpen ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsCameraOpen(false)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border)',
+                        backgroundColor: 'var(--bg-main)',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.8rem',
+                        fontWeight: 500,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <CameraOff size={14} /> ปิดกล้องสแกน
+                    </button>
+                  </div>
+                  <BarcodeScanner elementId="page-barcode-scanner" onScan={handleScanSuccess} onError={handleScanError} />
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsCameraOpen(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 20px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px dashed var(--border)',
+                      backgroundColor: 'var(--bg-main)',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Camera size={16} /> เปิดกล้องสแกน (สำหรับกรณีไม่มีเครื่องยิงบาร์โค้ด)
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
