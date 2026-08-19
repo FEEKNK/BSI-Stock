@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { Plus, Search, Filter, Printer, Download, SlidersHorizontal } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { ProductList } from '../components/Products/ProductList';
