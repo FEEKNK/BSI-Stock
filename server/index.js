@@ -160,7 +160,7 @@ app.post('/api/products/bulk', async (req, res) => {
         if (mode === 'add_stock') {
           // Add to existing stock
           mergedSizes = { ...existingSizes };
-          Object.entries(sizes).forEach(([sizeKey, sizeVal]) => {
+          for (const [sizeKey, sizeVal] of Object.entries(sizes)) {
             const addQty = typeof sizeVal === 'object' ? Number(sizeVal.stock || 0) : Number(sizeVal || 0);
             const curData = existingSizes[sizeKey];
             const curQty = curData ? (typeof curData === 'object' ? Number(curData.stock || 0) : Number(curData || 0)) : 0;
@@ -169,10 +169,40 @@ app.post('/api/products/bulk', async (req, res) => {
               stock: curQty + addQty,
               barcode: barcode
             };
-          });
+
+            // Log history if added quantity > 0
+            if (addQty > 0) {
+              await client.query(
+                `INSERT INTO dispensing_history (product_id, product_name, size, quantity, dispensed_date, hn, seller, note, type)
+                 VALUES ($1, $2, $3, $4, CURRENT_DATE, '-', $5, $6, 'IN')`,
+                [existing.id, name, sizeKey, addQty, 'นำเข้าผ่าน Excel', 'รับเข้าสต็อกเพิ่มจากไฟล์ Excel']
+              );
+            }
+          }
         } else {
           // Default: Replace / set as new balance
           mergedSizes = { ...existingSizes, ...sizes };
+          for (const [sizeKey, sizeVal] of Object.entries(sizes)) {
+            const newQty = typeof sizeVal === 'object' ? Number(sizeVal.stock || 0) : Number(sizeVal || 0);
+            const curData = existingSizes[sizeKey];
+            const curQty = curData ? (typeof curData === 'object' ? Number(curData.stock || 0) : Number(curData || 0)) : 0;
+            
+            if (newQty > curQty) {
+              const diff = newQty - curQty;
+              await client.query(
+                `INSERT INTO dispensing_history (product_id, product_name, size, quantity, dispensed_date, hn, seller, note, type)
+                 VALUES ($1, $2, $3, $4, CURRENT_DATE, '-', $5, $6, 'IN')`,
+                [existing.id, name, sizeKey, diff, 'นำเข้าผ่าน Excel', 'ปรับปรุงยอดสต็อกเพิ่มจากการนำเข้า Excel']
+              );
+            } else if (newQty < curQty) {
+              const diff = curQty - newQty;
+              await client.query(
+                `INSERT INTO dispensing_history (product_id, product_name, size, quantity, dispensed_date, hn, seller, note, type)
+                 VALUES ($1, $2, $3, $4, CURRENT_DATE, '-', $5, $6, 'OUT')`,
+                [existing.id, name, sizeKey, diff, 'นำเข้าผ่าน Excel', 'ปรับปรุงยอดสต็อกลดลงจากการตรวจนับ Excel']
+              );
+            }
+          }
         }
 
         const mergedTotalStock = Object.values(mergedSizes).reduce((sum, s) => sum + (Number(typeof s === 'object' ? s?.stock : s) || 0), 0);
@@ -187,12 +217,26 @@ app.post('/api/products/bulk', async (req, res) => {
         );
         updatedCount++;
       } else {
-        await client.query(
+        const insertRes = await client.query(
           `INSERT INTO products (name, category, price, barcode, description, threshold, sizes, total_stock, product_code)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING id`,
           [name, category, price, barcode, description, threshold, JSON.stringify(sizes), totalStock, code]
         );
         insertedCount++;
+
+        const newId = insertRes.rows[0]?.id;
+        // Log history for each initial size stock > 0
+        for (const [sizeKey, sizeVal] of Object.entries(sizes)) {
+          const initQty = typeof sizeVal === 'object' ? Number(sizeVal.stock || 0) : Number(sizeVal || 0);
+          if (initQty > 0) {
+            await client.query(
+              `INSERT INTO dispensing_history (product_id, product_name, size, quantity, dispensed_date, hn, seller, note, type)
+               VALUES ($1, $2, $3, $4, CURRENT_DATE, '-', $5, $6, 'IN')`,
+              [newId, name, sizeKey, initQty, 'นำเข้าผ่าน Excel', 'บันทึกสต็อกตั้งต้นจากการนำเข้า Excel']
+            );
+          }
+        }
       }
     }
 
