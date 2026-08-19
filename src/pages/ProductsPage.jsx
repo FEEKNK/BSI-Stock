@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { Plus, Search, Filter, Printer, Download } from 'lucide-react';
+import { Plus, Search, Filter, Printer, Download, SlidersHorizontal } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { ProductList } from '../components/Products/ProductList';
 import { ProductForm } from '../components/Products/ProductForm';
@@ -11,7 +10,7 @@ import { exportProductsToExcel } from '../utils/excel';
 import { useToast } from '../context/ToastContext';
 
 export function ProductsPage() {
-  const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, filterProducts } = useProducts();
+  const { products, isLoadingProducts, addProduct, updateProduct, deleteProduct, updateStock, filterProducts } = useProducts();
   const { toast } = useToast();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,7 +21,8 @@ export function ProductsPage() {
   
   const [filters, setFilters] = useState({
     search: '',
-    category: 'all'
+    category: 'all',
+    stockStatus: 'all'
   });
 
   const filteredProducts = filterProducts(filters);
@@ -144,12 +144,12 @@ export function ProductsPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '16px' }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
           <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
           <input
             type="text"
-            placeholder="ค้นหาชื่อสินค้า..."
+            placeholder="ค้นหาชื่อสินค้า, รหัสสินค้า, หรือบาร์โค้ด..."
             value={filters.search}
             onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
             style={inputStyle}
@@ -164,6 +164,19 @@ export function ProductsPage() {
           >
             <option value="all">ทุกหมวดหมู่</option>
             {existingCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
+        </div>
+        <div style={{ position: 'relative', width: '220px' }}>
+          <SlidersHorizontal size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+          <select
+            value={filters.stockStatus}
+            onChange={(e) => setFilters(prev => ({ ...prev, stockStatus: e.target.value }))}
+            style={{ ...inputStyle, paddingLeft: '36px', appearance: 'none', cursor: 'pointer' }}
+          >
+            <option value="all">สถานะสต็อก: ทั้งหมด</option>
+            <option value="out_of_stock">🔴 มีไซส์หมดสต็อก</option>
+            <option value="low_stock">🟡 มีไซส์ใกล้หมด</option>
+            <option value="normal">🟢 สต็อกปกติทั้งหมด</option>
           </select>
         </div>
       </div>
