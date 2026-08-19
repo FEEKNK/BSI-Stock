@@ -212,14 +212,16 @@ export function DispensingForm({ initialData = null, onSubmit, onCancel }) {
       </div>
 
       <div>
-        <label style={labelStyle}>ผู้ขาย / ผู้เบิก <span style={{color: 'var(--danger)'}}>*</span></label>
+        <label style={labelStyle}>
+          {formData.type === 'IN' ? 'ผู้รับเข้าสินค้า / ผู้บันทึก' : 'ผู้ทำรายการ / ผู้เบิก'} <span style={{color: 'var(--danger)'}}>*</span>
+        </label>
         <input
           type="text"
           name="seller"
           value={formData.seller}
           onChange={handleChange}
           style={{...inputStyle, borderColor: errors.seller ? 'var(--danger)' : 'var(--border)'}}
-          placeholder="ชื่อผู้เบิกสินค้า"
+          placeholder={formData.type === 'IN' ? 'ชื่อผู้รับเข้าสินค้า / ผู้บันทึก' : 'ชื่อผู้เบิกสินค้า'}
         />
         {errors.seller && <span style={{color: 'var(--danger)', fontSize: '0.75rem'}}>{errors.seller}</span>}
       </div>
