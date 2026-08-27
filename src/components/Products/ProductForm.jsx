@@ -63,8 +63,8 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
     const validation = validateProduct(formData);
     const newErrors = { ...validation.errors };
 
-    if (initialData && (!formData.seller || !formData.seller.trim())) {
-      newErrors.seller = 'กรุณาระบุชื่อผู้ปรับสต็อก';
+    if (!formData.seller || !formData.seller.trim()) {
+      newErrors.seller = initialData ? 'กรุณาระบุชื่อผู้ปรับสต็อก' : 'กรุณาระบุชื่อพนักงานผู้บันทึกสินค้า';
     }
     
     if (Object.keys(newErrors).length > 0) {
@@ -203,38 +203,36 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
           />
         </div>
 
-        {!!initialData && (
-          <div style={{
-            padding: '16px 20px',
-            backgroundColor: 'var(--bg-main)',
-            borderRadius: 'var(--radius-md)',
-            border: errors.seller ? '1px solid var(--danger)' : '1px solid var(--border)'
-          }}>
-            <label style={labelStyle}>
-              ชื่อผู้ปรับสต็อก <span style={{ color: 'var(--danger)' }}>*</span>
-              <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem', marginLeft: '6px' }}>
-                (จำเป็นต้องระบุ เพื่อบันทึกประวัติการปรับปรุง)
-              </span>
-            </label>
-            <input
-              type="text"
-              name="seller"
-              value={formData.seller || ''}
-              onChange={handleChange}
-              style={{
-                ...inputStyle,
-                borderColor: errors.seller ? 'var(--danger)' : 'var(--border)',
-                marginBottom: 0
-              }}
-              placeholder="ระบุชื่อพนักงาน / ผู้ดำเนินการปรับสต็อก"
-            />
-            {errors.seller && (
-              <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '6px', display: 'block', fontWeight: 500 }}>
-                {errors.seller}
-              </span>
-            )}
-          </div>
-        )}
+        <div style={{
+          padding: '16px 20px',
+          backgroundColor: 'var(--bg-main)',
+          borderRadius: 'var(--radius-md)',
+          border: errors.seller ? '1px solid var(--danger)' : '1px solid var(--border)'
+        }}>
+          <label style={labelStyle}>
+            {initialData ? 'ชื่อผู้ปรับสต็อก' : 'ชื่อพนักงาน / ผู้บันทึกสินค้า'} <span style={{ color: 'var(--danger)' }}>*</span>
+            <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem', marginLeft: '6px' }}>
+              {initialData ? '(จำเป็นต้องระบุ เพื่อบันทึกประวัติการปรับปรุง)' : '(จำเป็นต้องระบุ เพื่อบันทึกประวัติผู้ทำรายการ)'}
+            </span>
+          </label>
+          <input
+            type="text"
+            name="seller"
+            value={formData.seller || ''}
+            onChange={handleChange}
+            style={{
+              ...inputStyle,
+              borderColor: errors.seller ? 'var(--danger)' : 'var(--border)',
+              marginBottom: 0
+            }}
+            placeholder={initialData ? 'ระบุชื่อพนักงาน / ผู้ดำเนินการปรับสต็อก' : 'ระบุชื่อพนักงานผู้เพิ่มสินค้า'}
+          />
+          {errors.seller && (
+            <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '6px', display: 'block', fontWeight: 500 }}>
+              {errors.seller}
+            </span>
+          )}
+        </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
           <button

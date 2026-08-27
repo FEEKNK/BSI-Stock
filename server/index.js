@@ -46,19 +46,103 @@ app.get('/api/size-codes', async (req, res) => {
 
 // Create product
 app.post('/api/products', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { name, category, price, barcode, description, threshold, sizes, totalStock, product_code } = req.body;
+    const { name, category, price, barcode, description, threshold, sizes, totalStock, product_code, seller } = req.body;
+    
+    await client.query('BEGIN');
+
+    // Auto assign product_code if missing
+    let finalProductCode = product_code;
+    if (!finalProductCode) {
+      const { rows: maxRows } = await client.query(
+        `SELECT MAX(CAST(product_code AS INTEGER)) as max_code FROM products WHERE product_code IS NOT NULL`
+      );
+      finalProductCode = String((maxRows[0].max_code || 0) + 1).padStart(3, '0');
+    }
+
+    // Process sizes and ensure barcodes are valid
+    let processedSizes = sizes || {};
+    let calculatedTotal = 0;
+    if (typeof processedSizes === 'object') {
+      const catCode = (category === 'เสื้อชั้นใน' ? '10' : (category === 'ชุดชั้นใน' ? '11' : (category === 'กางเกงใน' ? '20' : (category === 'อุปกรณ์เสริม' ? '30' : '90'))));
+      
+      for (const [sizeName, sizeData] of Object.entries(processedSizes)) {
+        const stock = typeof sizeData === 'object' ? (Number(sizeData.stock) || 0) : (Number(sizeData) || 0);
+        calculatedTotal += stock;
+        
+        let b = typeof sizeData === 'object' ? sizeData.barcode : '';
+        if (!b || String(b).includes('000') || String(b).length < 12) {
+          const cRes = await client.query(`UPDATE barcode_counter SET last_value = last_value + 1 WHERE id = 1 RETURNING last_value`);
+          const counterVal = cRes.rows[0].last_value;
+          const sizeCode = (sizeName === '-' ? '00' : (sizeName.toLowerCase().includes('free') ? '01' : (sizeName === '2XS' ? '02' : (sizeName === 'XS' ? '03' : (sizeName === 'S' ? '04' : (sizeName === 'M' ? '05' : (sizeName === 'L' ? '06' : (sizeName === 'XL' ? '07' : (sizeName === '2XL' ? '08' : (sizeName === '3XL' ? '09' : (sizeName === '4XL' ? '10' : sizeName)))))))))));
+          const ss = String(sizeCode).padStart(2, '0');
+          const nnnnn = String(counterVal).padStart(5, '0');
+          b = `${catCode}${finalProductCode}${ss}${nnnnn}`;
+        }
+        processedSizes[sizeName] = { stock, barcode: b };
+      }
+    }
+
     const q = `
       INSERT INTO products (name, category, price, barcode, description, threshold, sizes, total_stock, product_code)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
-    const values = [name, category, price || 0, barcode, description, threshold, JSON.stringify(sizes), totalStock, product_code || null];
-    const { rows } = await query(q, values);
-    res.status(201).json(rows[0]);
+    const values = [name, category, price || 0, barcode, description, threshold, JSON.stringify(processedSizes), calculatedTotal, finalProductCode];
+    const { rows } = await client.query(q, values);
+    const newProduct = rows[0];
+
+    // Log to dispensing_history
+    const sizeEntries = Object.entries(processedSizes);
+    const hasInitialStock = sizeEntries.some(([_, s]) => (Number(s?.stock) || 0) > 0);
+    
+    if (hasInitialStock) {
+      for (const [size, sizeData] of sizeEntries) {
+        const initialStock = Number(sizeData?.stock) || 0;
+        if (initialStock > 0) {
+          const historyQ = `
+            INSERT INTO dispensing_history (product_id, product_name, size, quantity, dispensed_date, hn, seller, note, type)
+            VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, $7, $8)
+          `;
+          await client.query(historyQ, [
+            newProduct.id,
+            name,
+            size,
+            initialStock,
+            '-',
+            seller || 'System',
+            'เพิ่มสินค้าใหม่ (สต็อกเริ่มต้น)',
+            'IN'
+          ]);
+        }
+      }
+    } else {
+      // Log registration entry even with 0 stock so employee is recorded
+      const historyQ = `
+        INSERT INTO dispensing_history (product_id, product_name, size, quantity, dispensed_date, hn, seller, note, type)
+        VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, $7, $8)
+      `;
+      await client.query(historyQ, [
+        newProduct.id,
+        name,
+        sizeEntries.length > 0 ? sizeEntries[0][0] : '-',
+        0,
+        '-',
+        seller || 'System',
+        'เพิ่มสินค้าใหม่เข้าระบบ',
+        'IN'
+      ]);
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json(newProduct);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create product' });
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Error in POST /api/products:', err);
+    res.status(500).json({ error: 'Failed to create product: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 

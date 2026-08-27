@@ -45,14 +45,18 @@ export function ProductsPage() {
   };
 
   const handleSubmit = async (data) => {
-    if (editingProduct && editingProduct.id) {
-      await updateProduct(editingProduct.id, data);
-      toast.success('บันทึกการแก้ไขสินค้าสำเร็จ');
-    } else {
-      await addProduct(data);
-      toast.success('เพิ่มสินค้าใหม่สำเร็จ');
+    try {
+      if (editingProduct && editingProduct.id) {
+        await updateProduct(editingProduct.id, data);
+        toast.success('บันทึกการแก้ไขสินค้าสำเร็จ');
+      } else {
+        await addProduct(data);
+        toast.success('เพิ่มสินค้าใหม่สำเร็จ');
+      }
+      handleCloseModal();
+    } catch (err) {
+      toast.error('เกิดข้อผิดพลาด: ' + (err.message || 'ไม่สามารถบันทึกสินค้าได้'));
     }
-    handleCloseModal();
   };
 
   const handleDelete = (id) => {
@@ -484,14 +488,24 @@ export function ProductsPage() {
       <div id="print-area" style={{ display: 'none' }}>
         {productToPrint && (
           <div>
-            <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>บาร์โค้ดสินค้า: {productToPrint.name}</h2>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'center' }}>
+            <h2 style={{ textAlign: 'center', marginBottom: '24px' }}>บาร์โค้ดสินค้า: {productToPrint.name}</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
               {Object.entries(productToPrint.sizes || {}).map(([size, data]) => {
                 const barcode = typeof data === 'object' ? data.barcode : '';
                 if (!barcode) return null;
                 return (
-                  <div key={size} style={{ textAlign: 'center', breakInside: 'avoid', border: '1px dashed #ccc', padding: '10px', minWidth: '200px' }}>
-                    <h4 style={{ margin: '0 0 10px 0' }}>{productToPrint.name} - ไซส์ {size}</h4>
+                  <div key={size} style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    border: '1px dashed #666', padding: '16px 20px',
+                    borderRadius: '8px', breakInside: 'avoid', marginBottom: '10px',
+                    width: '100%', boxSizing: 'border-box', backgroundColor: '#fff'
+                  }}>
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', textAlign: 'center', marginBottom: '6px', wordBreak: 'break-word', lineHeight: '1.3' }}>
+                      {productToPrint.name}
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: 'bold', backgroundColor: '#f0f0f0', padding: '3px 14px', borderRadius: '12px', marginBottom: '12px' }}>
+                      ไซส์: {size}
+                    </div>
                     <BarcodeGenerator value={barcode} hideWrapper={true} />
                   </div>
                 );

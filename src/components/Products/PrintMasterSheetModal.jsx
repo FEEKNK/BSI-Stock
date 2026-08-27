@@ -121,7 +121,7 @@ export function PrintMasterSheetModal({ isOpen, onClose, products }) {
             <tbody style={{ display: 'table-row-group' }}>
               <tr>
                 <td>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
               {prods.map(product => {
                 const sizes = product.sizes || {};
                 const sizeKeys = Object.keys(sizes);
@@ -133,14 +133,15 @@ export function PrintMasterSheetModal({ isOpen, onClose, products }) {
 
                   return (
                     <div key={`${product.id}-${size}`} style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center',
-                      minWidth: '250px', border: '1px dashed #999', padding: '20px',
-                      borderRadius: '8px', breakInside: 'avoid', marginBottom: '20px'
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      border: '1px dashed #666', padding: '16px 20px',
+                      borderRadius: '8px', breakInside: 'avoid', marginBottom: '10px',
+                      width: '100%', boxSizing: 'border-box', backgroundColor: '#fff'
                     }}>
-                      <div style={{ fontSize: '18px', fontWeight: 'bold', textAlign: 'center', marginBottom: '8px', wordBreak: 'break-word', lineHeight: '1.4' }}>
+                      <div style={{ fontSize: '18px', fontWeight: 'bold', textAlign: 'center', marginBottom: '6px', wordBreak: 'break-word', lineHeight: '1.3' }}>
                         {product.name}
                       </div>
-                      <div style={{ fontSize: '16px', fontWeight: 'bold', backgroundColor: '#f0f0f0', padding: '4px 12px', borderRadius: '16px', marginBottom: '16px' }}>
+                      <div style={{ fontSize: '15px', fontWeight: 'bold', backgroundColor: '#f0f0f0', padding: '3px 14px', borderRadius: '12px', marginBottom: '12px' }}>
                         ไซส์: {size}
                       </div>
                       <BarcodeGenerator value={barcode} hideWrapper={true} />

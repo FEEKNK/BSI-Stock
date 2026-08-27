@@ -69,7 +69,6 @@ export function AppProvider({ children }) {
 
   // Products Actions
   const addProduct = async (product) => {
-
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
@@ -78,15 +77,18 @@ export function AppProvider({ children }) {
       });
       if (res.ok) {
         const newProduct = await res.json();
-        setProducts(prev => [newProduct, ...prev]);
+        await fetchProducts();
+        return newProduct;
       }
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Failed to add product');
     } catch (err) {
       console.error('Error adding product:', err);
+      throw err;
     }
   };
   
   const updateProduct = async (id, updates) => {
-
     try {
       const res = await fetch(`/api/products/${id}`, {
         method: 'PUT',
@@ -95,10 +97,14 @@ export function AppProvider({ children }) {
       });
       if (res.ok) {
         const updated = await res.json();
-        setProducts(prev => prev.map(p => p.id === id ? updated : p));
+        await fetchProducts();
+        return updated;
       }
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Failed to update product');
     } catch (err) {
       console.error('Error updating product:', err);
+      throw err;
     }
   };
   
