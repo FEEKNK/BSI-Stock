@@ -61,9 +61,14 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const validation = validateProduct(formData);
+    const newErrors = { ...validation.errors };
+
+    if (initialData && (!formData.seller || !formData.seller.trim())) {
+      newErrors.seller = 'กรุณาระบุชื่อผู้ปรับสต็อก';
+    }
     
-    if (!validation.isValid) {
-      setErrors(validation.errors);
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
@@ -170,20 +175,6 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
           />
         </div>
 
-        {!!initialData && (
-          <div>
-            <label style={labelStyle}>ชื่อผู้ปรับสต็อก <span style={{color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem'}}>(แสดงในประวัติ)</span></label>
-            <input
-              type="text"
-              name="seller"
-              value={formData.seller || ''}
-              onChange={handleChange}
-              style={inputStyle}
-              placeholder="ชื่อพนักงานที่ปรับสต็อก"
-            />
-          </div>
-        )}
-
         <div>
           <label style={labelStyle}>แจ้งเตือนเมื่อสต็อกต่ำกว่า (ชิ้น)</label>
           <input
@@ -211,6 +202,39 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
             isEdit={!!initialData}
           />
         </div>
+
+        {!!initialData && (
+          <div style={{
+            padding: '16px 20px',
+            backgroundColor: 'var(--bg-main)',
+            borderRadius: 'var(--radius-md)',
+            border: errors.seller ? '1px solid var(--danger)' : '1px solid var(--border)'
+          }}>
+            <label style={labelStyle}>
+              ชื่อผู้ปรับสต็อก <span style={{ color: 'var(--danger)' }}>*</span>
+              <span style={{ color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem', marginLeft: '6px' }}>
+                (จำเป็นต้องระบุ เพื่อบันทึกประวัติการปรับปรุง)
+              </span>
+            </label>
+            <input
+              type="text"
+              name="seller"
+              value={formData.seller || ''}
+              onChange={handleChange}
+              style={{
+                ...inputStyle,
+                borderColor: errors.seller ? 'var(--danger)' : 'var(--border)',
+                marginBottom: 0
+              }}
+              placeholder="ระบุชื่อพนักงาน / ผู้ดำเนินการปรับสต็อก"
+            />
+            {errors.seller && (
+              <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '6px', display: 'block', fontWeight: 500 }}>
+                {errors.seller}
+              </span>
+            )}
+          </div>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
           <button

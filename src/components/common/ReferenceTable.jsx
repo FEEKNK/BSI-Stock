@@ -299,10 +299,20 @@ export function ReferenceTable() {
     }
   };
 
+  const [productPage, setProductPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setProductPage(1);
+  }, [products]);
+
   const filteredProducts = products.filter(p => p.product_code).sort((a, b) => {
     if (a.category !== b.category) return (a.category || '').localeCompare(b.category || '');
     return (a.product_code || '').localeCompare(b.product_code || '');
   });
+
+  const totalProductPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+  const paginatedProducts = filteredProducts.slice((productPage - 1) * itemsPerPage, productPage * itemsPerPage);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -570,7 +580,7 @@ export function ReferenceTable() {
                 </tr>
               </thead>
               <tbody>
-                {filteredProducts.map((p, i) => (
+                {paginatedProducts.map((p, i) => (
                   <tr key={p.id} style={{ backgroundColor: i % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-main)', borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '10px 16px', fontWeight: 700, fontFamily: 'monospace', fontSize: '1rem' }}>{p.product_code}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-primary)' }}>{p.name}</td>
@@ -587,6 +597,97 @@ export function ReferenceTable() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {filteredProducts.length > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 16px',
+              borderTop: '1px solid var(--border)',
+              backgroundColor: 'var(--bg-surface)',
+              flexWrap: 'wrap',
+              gap: '10px'
+            }}>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                แสดง {((productPage - 1) * itemsPerPage) + 1} ถึง {Math.min(productPage * itemsPerPage, filteredProducts.length)} จาก {filteredProducts.length} รายการ
+              </div>
+
+              {totalProductPages > 1 && (
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                    disabled={productPage === 1}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '0.8125rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      backgroundColor: productPage === 1 ? 'var(--bg-main)' : 'var(--bg-surface)',
+                      color: productPage === 1 ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                      cursor: productPage === 1 ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    ก่อนหน้า
+                  </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {Array.from({ length: totalProductPages }).map((_, idx) => {
+                      const page = idx + 1;
+                      if (
+                        page === 1 ||
+                        page === totalProductPages ||
+                        (page >= productPage - 1 && page <= productPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => setProductPage(page)}
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '0.8125rem',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid',
+                              borderColor: productPage === page ? 'var(--primary)' : 'var(--border)',
+                              backgroundColor: productPage === page ? 'var(--primary)' : 'var(--bg-surface)',
+                              color: productPage === page ? '#fff' : 'var(--text-primary)',
+                              cursor: 'pointer',
+                              fontWeight: productPage === page ? 600 : 400
+                            }}
+                          >
+                            {page}
+                          </button>
+                        );
+                      } else if (page === productPage - 2 || page === productPage + 2) {
+                        return <span key={page} style={{ padding: '0 2px', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>...</span>;
+                      }
+                      return null;
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setProductPage(p => Math.min(totalProductPages, p + 1))}
+                    disabled={productPage === totalProductPages}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '0.8125rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      backgroundColor: productPage === totalProductPages ? 'var(--bg-main)' : 'var(--bg-surface)',
+                      color: productPage === totalProductPages ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                      cursor: productPage === totalProductPages ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    ถัดไป
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
