@@ -1244,13 +1244,19 @@ const initDb = async () => {
 };
 
 const PORT = process.env.PORT || 3001;
-const server = app.listen(PORT, async () => {
-  await initDb();
-  console.log(`Server running on port ${PORT}`);
-});
 
-server.on('error', (e) => console.error('Server error:', e));
-server.on('close', () => console.log('Server closed!'));
+if (!process.env.VERCEL) {
+  const server = app.listen(PORT, async () => {
+    await initDb();
+    console.log(`Server running on port ${PORT}`);
+  });
 
-// Keep process alive just in case
-setInterval(() => {}, 1000 * 60 * 60);
+  server.on('error', (e) => console.error('Server error:', e));
+  server.on('close', () => console.log('Server closed!'));
+
+  // Keep process alive just in case
+  setInterval(() => {}, 1000 * 60 * 60);
+}
+
+export default app;
+
