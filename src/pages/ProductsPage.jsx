@@ -312,8 +312,8 @@ export function ProductsPage() {
           <p style={{ margin: '0 0 24px 0', fontSize: '1rem', color: 'var(--text-primary)' }}>
             คุณแน่ใจหรือไม่ที่จะลบสินค้า <strong>{productToDelete?.name}</strong>?
             <br/>
-            <span style={{ fontSize: '0.875rem', color: 'var(--danger)', display: 'block', marginTop: '8px' }}>
-              การกระทำนี้ไม่สามารถกู้คืนได้
+            <span style={{ fontSize: '0.875rem', color: 'var(--danger)', display: 'block', marginTop: '12px', fontWeight: 500, backgroundColor: 'var(--danger-bg)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
+              คำเตือน: การลบสินค้านี้จะลบ "ประวัติการเบิก-รับเข้า" ทั้งหมดที่เกี่ยวข้องกับสินค้านี้ทิ้งไปด้วยอย่างถาวร
             </span>
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>

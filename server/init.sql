@@ -27,3 +27,15 @@ CREATE TABLE IF NOT EXISTS dispensing_history (
   note TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+  id INTEGER PRIMARY KEY DEFAULT 1,
+  global_threshold INTEGER DEFAULT 30,
+  notifications_enabled BOOLEAN DEFAULT true,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT single_row CHECK (id = 1)
+);
+
+INSERT INTO settings (id, global_threshold, notifications_enabled) 
+VALUES (1, 30, true)
+ON CONFLICT (id) DO NOTHING;

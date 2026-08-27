@@ -16,7 +16,8 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
     description: '',
     sizes: {},
     threshold: settings.globalThreshold,
-    product_code: null
+    product_code: null,
+    seller: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -25,12 +26,12 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
 
   useEffect(() => {
     fetch('/api/category-codes')
-      .then(res => res.json())
-      .then(data => setDbCategories(data))
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setDbCategories(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
       
     if (initialData) {
-      setFormData(initialData);
+      setFormData({ ...initialData, seller: '' });
     }
   }, [initialData]);
 
@@ -43,8 +44,12 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
     // Auto-fetch product_code when category changes (new product only)
     if (name === 'category' && !initialData?.id && value) {
       fetch(`/api/next-product-code/${encodeURIComponent(value)}`)
-        .then(r => r.json())
-        .then(d => setFormData(prev => ({ ...prev, product_code: d.product_code })))
+        .then(r => r.ok ? r.json() : {})
+        .then(d => {
+          if (d?.product_code) {
+            setFormData(prev => ({ ...prev, product_code: d.product_code }));
+          }
+        })
         .catch(() => {});
     }
   };
@@ -165,6 +170,20 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
           />
         </div>
 
+        {!!initialData && (
+          <div>
+            <label style={labelStyle}>ชื่อผู้ปรับสต็อก <span style={{color: 'var(--text-tertiary)', fontWeight: 'normal', fontSize: '0.75rem'}}>(แสดงในประวัติ)</span></label>
+            <input
+              type="text"
+              name="seller"
+              value={formData.seller || ''}
+              onChange={handleChange}
+              style={inputStyle}
+              placeholder="ชื่อพนักงานที่ปรับสต็อก"
+            />
+          </div>
+        )}
+
         <div>
           <label style={labelStyle}>แจ้งเตือนเมื่อสต็อกต่ำกว่า (ชิ้น)</label>
           <input
@@ -185,11 +204,12 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
         }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem', color: 'var(--text-primary)', fontWeight: 600 }}>จัดการไซส์และสต็อก</h3>
           <SizeSelector 
-          value={formData.sizes} 
-          onChange={handleSizeChange} 
-          category={formData.category}
-          productCode={formData.product_code || '000'}
-        />
+            value={formData.sizes} 
+            onChange={handleSizeChange} 
+            category={formData.category}
+            productCode={formData.product_code || '000'}
+            isEdit={!!initialData}
+          />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>

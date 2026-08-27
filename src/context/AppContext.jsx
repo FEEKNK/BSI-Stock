@@ -8,13 +8,44 @@ export function AppProvider({ children }) {
   const [products, setProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   
-  const [savedSizes, setSavedSizes] = useLocalStorage(STORAGE_KEYS.SAVED_SIZES, []);
-  const [savedCategories, setSavedCategories] = useLocalStorage(STORAGE_KEYS.SAVED_CATEGORIES, []);
 
-  const [settings, setSettings] = useLocalStorage(STORAGE_KEYS.SETTINGS, {
+  const [settings, setSettings] = useState({
     globalThreshold: 30,
     notificationsEnabled: true
   });
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setSettings({
+          globalThreshold: data.global_threshold,
+          notificationsEnabled: data.notifications_enabled
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+    }
+  }, []);
+
+  const updateSettings = async (newSettings) => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          global_threshold: newSettings.globalThreshold,
+          notifications_enabled: newSettings.notificationsEnabled
+        })
+      });
+      if (res.ok) {
+        setSettings(newSettings);
+      }
+    } catch (err) {
+      console.error('Error updating settings:', err);
+    }
+  };
 
   const fetchProducts = useCallback(async () => {
     setIsLoadingProducts(true);
@@ -32,47 +63,12 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    fetchSettings();
+  }, [fetchProducts, fetchSettings]);
 
-  useEffect(() => {
-    // Migrate existing local storage to the new default of 30
-    if (!localStorage.getItem('threshold_migrated_to_30')) {
-      setSettings(prev => ({ ...prev, globalThreshold: 30 }));
-      localStorage.setItem('threshold_migrated_to_30', 'true');
-    }
-  }, [setSettings]);
 
-  // Size management
-  const addSavedSize = useCallback((size) => {
-    const trimmed = (size || '').trim();
-    if (trimmed) {
-      setSavedSizes(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
-    }
-  }, [setSavedSizes]);
-
-  const removeSavedSize = useCallback((size) => {
-    setSavedSizes(prev => prev.filter(s => s !== size));
-  }, [setSavedSizes]);
-
-  // Category management
-  const addSavedCategory = useCallback((category) => {
-    const trimmed = (category || '').trim();
-    if (trimmed) {
-      setSavedCategories(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
-    }
-  }, [setSavedCategories]);
-
-  const removeSavedCategory = useCallback((category) => {
-    setSavedCategories(prev => prev.filter(c => c !== category));
-  }, [setSavedCategories]);
-  
   // Products Actions
   const addProduct = async (product) => {
-    // Auto-save category and sizes
-    if (product.category) addSavedCategory(product.category);
-    if (product.sizes) {
-      Object.keys(product.sizes).forEach(size => addSavedSize(size));
-    }
 
     try {
       const res = await fetch('/api/products', {
@@ -90,11 +86,6 @@ export function AppProvider({ children }) {
   };
   
   const updateProduct = async (id, updates) => {
-    // Auto-save category and sizes
-    if (updates.category) addSavedCategory(updates.category);
-    if (updates.sizes) {
-      Object.keys(updates.sizes).forEach(size => addSavedSize(size));
-    }
 
     try {
       const res = await fetch(`/api/products/${id}`, {
@@ -176,13 +167,7 @@ export function AppProvider({ children }) {
     isLoadingProducts,
     setProducts,
     settings,
-    setSettings,
-    savedSizes,
-    addSavedSize,
-    removeSavedSize,
-    savedCategories,
-    addSavedCategory,
-    removeSavedCategory,
+    updateSettings,
     addProduct,
     updateProduct,
     deleteProduct,
@@ -193,12 +178,6 @@ export function AppProvider({ children }) {
     products, 
     isLoadingProducts, 
     settings, 
-    savedSizes, 
-    addSavedSize, 
-    removeSavedSize, 
-    savedCategories, 
-    addSavedCategory, 
-    removeSavedCategory, 
     fetchProducts
   ]);
 

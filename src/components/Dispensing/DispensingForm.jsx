@@ -66,9 +66,11 @@ export function DispensingForm({ initialData = null, onSubmit, onCancel }) {
     if (!formData.seller || !formData.seller.trim()) newErrors.seller = 'กรุณาระบุชื่อผู้เบิกสินค้า';
     
     const qty = Number(formData.quantity);
+    const isOutRecord = !initialData || !initialData.type || initialData.type === 'OUT';
+    
     if (!formData.quantity || qty < 1) {
       newErrors.quantity = 'ระบุจำนวนที่ถูกต้อง (ต้องมากกว่า 0)';
-    } else if (formData.product_id && formData.size) {
+    } else if (formData.product_id && formData.size && isOutRecord) {
       if (maxAllowedStock <= 0) {
         newErrors.quantity = 'สินค้านี้หมดสต็อก ไม่สามารถทำรายการเบิกได้';
       } else if (qty > maxAllowedStock) {

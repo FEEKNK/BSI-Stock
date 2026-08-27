@@ -30,11 +30,11 @@ export function ReferenceTable() {
 
   const fetchData = () => {
     Promise.all([
-      fetch('/api/category-codes').then(res => res.json()),
-      fetch('/api/size-codes').then(res => res.json())
+      fetch('/api/category-codes').then(res => res.ok ? res.json() : []).catch(() => []),
+      fetch('/api/size-codes').then(res => res.ok ? res.json() : []).catch(() => [])
     ]).then(([cats, sizes]) => {
-      setCategoryCodes(cats);
-      setSizeCodes(sizes);
+      setCategoryCodes(Array.isArray(cats) ? cats : []);
+      setSizeCodes(Array.isArray(sizes) ? sizes : []);
     }).catch(err => console.error("Error fetching codes:", err));
   };
 

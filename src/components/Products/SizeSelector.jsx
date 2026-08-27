@@ -3,15 +3,15 @@ import { Plus, Minus, X, Layers, Tag, Barcode, Check } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { generateStructuredBarcode, generateBarcodeValue } from '../../utils/barcode';
 
-export function SizeSelector({ value = {}, onChange, category = '', productCode = '000' }) {
-  const { addSavedSize } = useAppContext();
+export function SizeSelector({ value = {}, onChange, category = '', productCode = '000', isEdit = false }) {
+  const { settings } = useAppContext();
   const [customSize, setCustomSize] = useState('');
   const [dbSizes, setDbSizes] = useState([]);
 
   useEffect(() => {
     fetch('/api/size-codes')
-      .then(res => res.json())
-      .then(data => setDbSizes(data))
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setDbSizes(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
   }, []);
 
@@ -50,7 +50,6 @@ export function SizeSelector({ value = {}, onChange, category = '', productCode 
     if (e) e.preventDefault();
     const trimmed = customSize.trim();
     if (trimmed) {
-      addSavedSize(trimmed);
       if (value[trimmed] === undefined) {
         const newBarcode = await generateStructuredBarcode(category, productCode, trimmed);
         onChange({ ...value, [trimmed]: { stock: 0, barcode: newBarcode } });
@@ -115,45 +114,47 @@ export function SizeSelector({ value = {}, onChange, category = '', productCode 
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <input 
-          type="text" 
-          value={customSize}
-          onChange={(e) => setCustomSize(e.target.value)}
-          placeholder="พิมพ์ชื่อไซส์แบบกำหนดเอง (ถ้าไม่มีให้เลือกด้านบน)..."
-          style={{
-            padding: '10px 14px',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border)',
-            backgroundColor: 'var(--bg-surface)',
-            color: 'var(--text-primary)',
-            flex: 1
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              addCustomSize(e);
-            }
-          }}
-        />
-        <button 
-          type="button" 
-          onClick={addCustomSize} 
-          style={{
-            padding: '10px 18px',
-            backgroundColor: 'var(--primary)',
-            color: '#ffffff',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontWeight: 600,
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <Plus size={16} /> เพิ่มไซส์
-        </button>
-      </div>
+      {!isEdit && (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+          <input 
+            type="text" 
+            value={customSize}
+            onChange={(e) => setCustomSize(e.target.value)}
+            placeholder="พิมพ์ชื่อไซส์แบบกำหนดเอง (ถ้าไม่มีให้เลือกด้านบน)..."
+            style={{
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              flex: 1
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addCustomSize(e);
+              }
+            }}
+          />
+          <button 
+            type="button" 
+            onClick={addCustomSize} 
+            style={{
+              padding: '10px 18px',
+              backgroundColor: 'var(--primary)',
+              color: '#ffffff',
+              borderRadius: 'var(--radius-md)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontWeight: 600,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Plus size={16} /> เพิ่มไซส์
+          </button>
+        </div>
+      )}
 
       {sizeKeys.length === 0 ? (
         <div style={{

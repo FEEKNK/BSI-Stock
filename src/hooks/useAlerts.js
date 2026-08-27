@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 
 export function useAlerts() {
-  const { products, settings, setSettings } = useAppContext();
+  const { products, settings, updateSettings } = useAppContext();
 
   const alerts = useMemo(() => {
     if (!settings.notificationsEnabled) return [];
@@ -88,11 +88,11 @@ export function useAlerts() {
   }, [products, settings]);
 
   const setGlobalThreshold = (threshold) => {
-    setSettings(prev => ({ ...prev, globalThreshold: threshold }));
+    updateSettings({ ...settings, globalThreshold: threshold });
   };
 
   const toggleNotifications = (enabled) => {
-    setSettings(prev => ({ ...prev, notificationsEnabled: enabled }));
+    updateSettings({ ...settings, notificationsEnabled: enabled });
   };
 
   return {
