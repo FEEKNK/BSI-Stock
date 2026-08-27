@@ -6,6 +6,7 @@ import { useAppContext } from '../../context/AppContext';
 import { BarcodeScanner } from '../Barcode/BarcodeScanner';
 import { Modal } from '../common/Modal';
 import { Plus, X, Check, Camera, Sparkles } from 'lucide-react';
+import { StaffSelector } from '../common/StaffSelector';
 
 export function ProductForm({ initialData = null, onSubmit, onCancel }) {
   const { products, settings } = useAppContext();
@@ -215,17 +216,10 @@ export function ProductForm({ initialData = null, onSubmit, onCancel }) {
               {initialData ? '(จำเป็นต้องระบุ เพื่อบันทึกประวัติการปรับปรุง)' : '(จำเป็นต้องระบุ เพื่อบันทึกประวัติผู้ทำรายการ)'}
             </span>
           </label>
-          <input
-            type="text"
-            name="seller"
-            value={formData.seller || ''}
+          <StaffSelector
+            value={formData.seller}
             onChange={handleChange}
-            style={{
-              ...inputStyle,
-              borderColor: errors.seller ? 'var(--danger)' : 'var(--border)',
-              marginBottom: 0
-            }}
-            placeholder={initialData ? 'ระบุชื่อพนักงาน / ผู้ดำเนินการปรับสต็อก' : 'ระบุชื่อพนักงานผู้เพิ่มสินค้า'}
+            error={errors.seller}
           />
           {errors.seller && (
             <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '6px', display: 'block', fontWeight: 500 }}>

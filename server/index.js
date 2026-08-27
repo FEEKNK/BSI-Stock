@@ -1195,9 +1195,9 @@ app.get('/api/next-product-code/:category', async (req, res) => {
 // Settings endpoints
 app.get('/api/settings', async (req, res) => {
   try {
-    const { rows } = await query('SELECT global_threshold, notifications_enabled FROM settings WHERE id = 1');
+    const { rows } = await query('SELECT global_threshold, notifications_enabled, staff_list FROM settings WHERE id = 1');
     if (rows.length === 0) {
-      return res.json({ global_threshold: 30, notifications_enabled: true });
+      return res.json({ global_threshold: 30, notifications_enabled: true, staff_list: [] });
     }
     res.json(rows[0]);
   } catch (err) {
@@ -1208,15 +1208,15 @@ app.get('/api/settings', async (req, res) => {
 
 app.put('/api/settings', async (req, res) => {
   try {
-    const { global_threshold, notifications_enabled } = req.body;
+    const { global_threshold, notifications_enabled, staff_list } = req.body;
     const q = `
-      INSERT INTO settings (id, global_threshold, notifications_enabled)
-      VALUES (1, $1, $2)
+      INSERT INTO settings (id, global_threshold, notifications_enabled, staff_list)
+      VALUES (1, $1, $2, $3)
       ON CONFLICT (id) DO UPDATE 
-      SET global_threshold = $1, notifications_enabled = $2, updated_at = CURRENT_TIMESTAMP
-      RETURNING global_threshold, notifications_enabled
+      SET global_threshold = $1, notifications_enabled = $2, staff_list = COALESCE($3, settings.staff_list), updated_at = CURRENT_TIMESTAMP
+      RETURNING global_threshold, notifications_enabled, staff_list
     `;
-    const { rows } = await query(q, [global_threshold, notifications_enabled]);
+    const { rows } = await query(q, [global_threshold, notifications_enabled, staff_list ? JSON.stringify(staff_list) : '[]']);
     res.json(rows[0]);
   } catch (err) {
     console.error(err);

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { StaffSelector } from '../common/StaffSelector';
 
 export function DispensingForm({ initialData = null, onSubmit, onCancel }) {
   const { products } = useAppContext();
@@ -218,15 +219,12 @@ export function DispensingForm({ initialData = null, onSubmit, onCancel }) {
         <label style={labelStyle}>
           {formData.type === 'IN' ? 'ผู้รับเข้าสินค้า / ผู้บันทึก' : 'ผู้ทำรายการ / ผู้เบิก'} <span style={{color: 'var(--danger)'}}>*</span>
         </label>
-        <input
-          type="text"
-          name="seller"
+        <StaffSelector
           value={formData.seller}
           onChange={handleChange}
-          style={{...inputStyle, borderColor: errors.seller ? 'var(--danger)' : 'var(--border)'}}
-          placeholder={formData.type === 'IN' ? 'ชื่อผู้รับเข้าสินค้า / ผู้บันทึก' : 'ชื่อผู้เบิกสินค้า'}
+          error={errors.seller}
         />
-        {errors.seller && <span style={{color: 'var(--danger)', fontSize: '0.75rem'}}>{errors.seller}</span>}
+        {errors.seller && <span style={{color: 'var(--danger)', fontSize: '0.75rem', marginTop: '6px', display: 'block'}}>{errors.seller}</span>}
       </div>
 
       <div>

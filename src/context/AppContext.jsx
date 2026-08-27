@@ -11,7 +11,8 @@ export function AppProvider({ children }) {
 
   const [settings, setSettings] = useState({
     globalThreshold: 30,
-    notificationsEnabled: true
+    notificationsEnabled: true,
+    staffList: []
   });
 
   const fetchSettings = useCallback(async () => {
@@ -21,7 +22,8 @@ export function AppProvider({ children }) {
         const data = await res.json();
         setSettings({
           globalThreshold: data.global_threshold,
-          notificationsEnabled: data.notifications_enabled
+          notificationsEnabled: data.notifications_enabled,
+          staffList: data.staff_list || []
         });
       }
     } catch (err) {
@@ -36,7 +38,8 @@ export function AppProvider({ children }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           global_threshold: newSettings.globalThreshold,
-          notifications_enabled: newSettings.notificationsEnabled
+          notifications_enabled: newSettings.notificationsEnabled,
+          staff_list: newSettings.staffList
         })
       });
       if (res.ok) {

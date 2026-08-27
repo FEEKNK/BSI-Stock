@@ -4,6 +4,7 @@ import { useProducts } from '../hooks/useProducts';
 import { Modal } from '../components/common/Modal';
 import { ProductForm } from '../components/Products/ProductForm';
 import { useAppContext } from '../context/AppContext';
+import { StaffSelector } from '../components/common/StaffSelector';
 import { useToast } from '../context/ToastContext';
 import { Plus, Minus, Check, Box, ShoppingCart, Trash2, ArrowDownToLine, ArrowUpFromLine, RefreshCcw, Camera, CameraOff } from 'lucide-react';
 
@@ -472,21 +473,16 @@ export function BarcodePage() {
               <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
                 ผู้ทำรายการ <span style={{color: 'var(--danger)'}}>*</span>
               </label>
-              <input 
-                type="text" 
-                placeholder="ชื่อพนักงาน" 
-                value={sharedData.seller} 
+              <StaffSelector
+                value={sharedData.seller}
                 onChange={e => {
                   setSharedData(p => ({...p, seller: e.target.value}));
                   if (formErrors.seller) setFormErrors(p => ({...p, seller: null}));
-                }} 
-                style={{
-                  ...sharedInputStyle,
-                  borderColor: formErrors.seller ? 'var(--danger)' : 'var(--border)'
-                }} 
+                }}
+                error={formErrors.seller}
               />
               {formErrors.seller && (
-                <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>
+                <span style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
                   {formErrors.seller}
                 </span>
               )}
