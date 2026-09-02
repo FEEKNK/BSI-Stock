@@ -4,6 +4,7 @@ import { AppProvider } from './context/AppContext';
 import { ToastProvider } from './context/ToastContext';
 import { Sidebar } from './components/Layout/Sidebar';
 import { Header } from './components/Layout/Header';
+import { StockAlertModal } from './components/common/StockAlertModal';
 import { RefreshCw } from 'lucide-react';
 
 import './App.css';
@@ -57,6 +58,7 @@ function App() {
               </main>
             </div>
           </div>
+          <StockAlertModal />
         </BrowserRouter>
       </AppProvider>
     </ToastProvider>
